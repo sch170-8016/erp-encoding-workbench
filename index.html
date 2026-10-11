@@ -44,10 +44,13 @@
     background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.32);color:#fff}
   .hd-badge.gold{background:rgba(42,208,255,.18);border-color:rgba(142,240,255,.6);color:#b9ecff}
   @media (max-width:840px){
-    .hd-inner{flex-wrap:wrap;gap:12px}
+    .hd-inner{flex-wrap:wrap;gap:12px;align-items:center}
     .hd-right{margin-left:0;flex-direction:row;align-items:center;flex-wrap:wrap;flex:1 1 100%}
-    .hd-cn{font-size:22px;letter-spacing:2px;white-space:normal}
-    .hd-logo{width:48px;height:48px;border-radius:12px;padding:4px}
+    /* 手机端精简抬头：隐藏英文全称与副标题长串，KINTO 图标(logo)紧贴中文抬头左侧"前面"，单行显示，整体缩减篇幅 */
+    .hd-en{display:none}
+    .hd-sub{display:none}
+    .hd-logo{width:34px;height:34px;border-radius:9px;padding:3px}
+    .hd-cn{font-size:18px;letter-spacing:1px;white-space:nowrap}
     /* 账号栏独占整行、左起铺满，退出按钮用两端对齐均匀分布，避免被挤到右边界外 */
     .user-bar{flex:1 1 100%;justify-content:space-between;gap:6px;margin-top:2px}
     .user-bar .ue{max-width:none;flex:1 1 auto}
@@ -1290,7 +1293,7 @@ $("btnBatchTpl").onclick=()=>{
 };
 $("btnBatchImport").onclick=()=>$("fileBatch").click();
 // 版本标记：改动后请同步更新此串，方便一眼确认浏览器加载的是不是最新页面（防 file:// 缓存）
-const APP_VER="2026-10-11 22:45 · 云端共享（修批量写入跳页/配置实时同步）";
+const APP_VER="2026-10-11 23:17 · 云端共享（手机抬头精简）";
 if($("verTag")) $("verTag").textContent="v"+APP_VER;
 $("fileBatch").onchange=e=>{
   const f=e.target.files[0]; e.target.value=""; if(!f) return;
