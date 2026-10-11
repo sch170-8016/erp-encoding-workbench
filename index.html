@@ -824,7 +824,8 @@ $("btnSuggest").onclick=()=>{
   $("btnConfirm").onclick=confirmAction;
 };
 
-function emit(z,l1,l2,l3,l4,l5,action,reason,missing,drawing){
+// 仅生成「记录对象」，不碰任何 UI —— 供批量写入等不需要切页面的场景复用
+function makeRecord(z,l1,l2,l3,l4,l5,action,reason,missing,drawing){
   const erp=z+l1+l2+l3+l4+l5;
   const path=getPathNames(z,l1,l2,l3,l4,l5);
   const breakdown={zero:z,level1:l1,level2:l2,level3:l3,level4:l4,level5:l5};
@@ -834,22 +835,26 @@ function emit(z,l1,l2,l3,l4,l5,action,reason,missing,drawing){
     ["③ 流水连续", true],
     ["④ 新建/复用依据明确", reason.length>0]
   ];
+  return {erp_code:erp,drawing:drawing||"",level_breakdown:breakdown,category_path:path,action,action_reason:reason,
+          missing_attrs:missing||[],self_check:checks.map((c,i)=>`${i+1}. ${c[0]} ${c[1]?"✓":"✗"}`)};
+}
+// 渲染「② 结果与自检」面板并切到该页（用户点「确认」时调用）
+function emit(z,l1,l2,l3,l4,l5,action,reason,missing,drawing){
+  const out=makeRecord(z,l1,l2,l3,l4,l5,action,reason,missing,drawing);
+  const path=out.category_path;
   $("resultPanel").style.display="block";
   const navRes=document.querySelector('.nav-item[data-panel="resultPanel"]');
   if(navRes) navRes.classList.remove("dim");
   showPanel("resultPanel",true);
-  $("codeBig").textContent=erp;
+  $("codeBig").textContent=out.erp_code;
   $("actionTag").innerHTML=`<span class="tag ${action==='新建'?'new':'reuse'}">${action}</span> <span class="muted">${path}</span>`;
-  const fourQ=
+  $("analysisBox").innerHTML=
     `<div><b>① 命中分支 / 前缀</b>：${path}；前缀 ${z+l1+l2+l3+l4}</div>`+
     `<div><b>② 差异维度比对</b>：${nodeDiff([z,l1,l2,l3])||"—"}；与同分支现存物料逐维核对</div>`+
     `<div><b>③ 新建/复用证据</b>：${reason}</div>`+
     `<div><b>④ 五级流水与连续性</b>：取值 ${l5}（同分支内独立计数，新建=最大+1 / 复用=沿用既有）</div>`;
-  $("analysisBox").innerHTML=fourQ;
-  const out={erp_code:erp,drawing:drawing||"",level_breakdown:breakdown,category_path:path,action,action_reason:reason,
-             missing_attrs:missing||[],self_check:checks.map((c,i)=>`${i+1}. ${c[0]} ${c[1]?"✓":"✗"}`)};
   $("jsonBox").textContent=JSON.stringify(out,null,2);
-  $("selfCheck").innerHTML=checks.map(c=>`<li class="${c[1]?'pass':''}">${c[0]} ${c[1]?'✓':'✗'}</li>`).join("");
+  $("selfCheck").innerHTML=out.self_check.map(c=>`<li class="${c.indexOf("✓")>=0?'pass':''}">${c}</li>`).join("");
   return out;
 }
 function confirmAction(){
@@ -1259,7 +1264,8 @@ function batchWrite(){
       if(o.__ex) delete o.__ex;                       // 覆盖后旧修订层失效
       ovw++;
     }else{
-      const out=emit(s.z,s.l1,s.l2,s.l3,s.l4,s.l5,action,reason,[],r.draw);
+      // 用 makeRecord 生成记录对象（不切页面）；批量写入应保持当前视图，勿调用 emit 跳转
+      const out=makeRecord(s.z,s.l1,s.l2,s.l3,s.l4,s.l5,action,reason,[],r.draw);
       log.push({...out,name:r.name,spec:r.spec,mat:r.mat,drawing:r.draw});
       add++;
     }
@@ -1284,7 +1290,7 @@ $("btnBatchTpl").onclick=()=>{
 };
 $("btnBatchImport").onclick=()=>$("fileBatch").click();
 // 版本标记：改动后请同步更新此串，方便一眼确认浏览器加载的是不是最新页面（防 file:// 缓存）
-const APP_VER="2026-10-11 19:30 · 云端共享";
+const APP_VER="2026-10-11 22:45 · 云端共享（修批量写入跳页/配置实时同步）";
 if($("verTag")) $("verTag").textContent="v"+APP_VER;
 $("fileBatch").onchange=e=>{
   const f=e.target.files[0]; e.target.value=""; if(!f) return;
@@ -2525,11 +2531,22 @@ const DB = (function(){
         ch=client.channel("ledger-rt")
           .on("postgres_changes",{event:"*",schema:"public",table:"ledger"},(p)=>{
             if(p.eventType==="DELETE"){ const erp=p.old&&p.old.erp_code;
-              const i=log.findIndex(x=>x&&x.erp_code===erp); if(i>=0){ log.splice(i,1); saveLogLocal(); renderLog(); renderEx(""); } }
+              // renderEx() 不传参 → 保留当前搜索关键词，不被实时刷新清掉
+              const i=log.findIndex(x=>x&&x.erp_code===erp); if(i>=0){ log.splice(i,1); saveLogLocal(); renderLog(); renderEx(); } }
             else { const o=p.new&&p.new.data; if(!o) return;
               const i=log.findIndex(x=>x&&x.erp_code===o.erp_code);
               if(i>=0) log[i]=o; else log.push(o);
-              saveLogLocal(); renderLog(); renderEx(""); }
+              saveLogLocal(); renderLog(); renderEx(); }
+            setSync("已同步 · 实时");
+          }).subscribe();
+        // 分类配置 / 修订层也实时互见：别的成员改了分类或修订，本页立即刷新
+        client.channel("cfg-rt")
+          .on("postgres_changes",{event:"*",schema:"public",table:"app_config"},(p)=>{
+            try{
+              const k=p.new&&p.new.key, v=p.new&&p.new.value;
+              if(k==="CFG" && v && v.lv){ CFG=v; if(typeof CFG.l5seed!=="number") CFG.l5seed=1; saveCFGLocal(); refreshAll(); }
+              else if(k==="exOv" && v && typeof v==="object"){ exOv=v; saveExOvLocal(); applyExOv(); renderEx(); }
+            }catch(e){}
             setSync("已同步 · 实时");
           }).subscribe();
       }catch(e){}
