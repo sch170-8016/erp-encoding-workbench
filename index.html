@@ -234,6 +234,10 @@
   .auth-card .primary{background:var(--brand);color:#fff;font-weight:600}
   .auth-card .ghost{background:#fff;border:1px solid var(--line);color:var(--sub)}
   .auth-err{font-size:12.5px;color:var(--bad);min-height:16px;margin-bottom:6px}
+  .auth-checks{display:flex;gap:16px;margin:2px 0 12px;font-size:12.5px;color:var(--sub)}
+  .auth-check{display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none}
+  .auth-check input{width:auto;margin:0;padding:0;cursor:pointer}
+  .auth-note{margin-top:8px;font-size:11px;color:var(--sub);opacity:.85;line-height:1.45}
   .auth-hint{margin-top:12px;font-size:11.5px;color:var(--sub);line-height:1.5}
   .user-bar{display:flex;align-items:center;gap:8px;flex-direction:row}
   .user-bar .ue{font-size:12px;color:#fff;opacity:.92;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -271,6 +275,11 @@
     <input id="authEmail" type="email" placeholder="邮箱（各自注册或团队共用）">
     <input id="authPass" type="password" placeholder="密码（至少 6 位）">
     <div id="authErr" class="auth-err"></div>
+    <div class="auth-checks">
+      <label class="auth-check"><input type="checkbox" id="rmEmail"> 记住账号</label>
+      <label class="auth-check"><input type="checkbox" id="rmPass"> 记住密码</label>
+    </div>
+    <div class="auth-note">提示：勾选「记住密码」会把密码明文存于本机浏览器，仅建议私人设备使用；公共 / 共用电脑请勿勾选。</div>
     <button id="authLogin" class="primary">登录</button>
     <button id="authSignup" class="ghost">注册新账号</button>
     <div class="auth-hint">首次使用点「注册」：邮箱 + 密码即可，无需验证邮件（管理员可在 Supabase 关闭邮件确认）。同一账号可在多设备登录，数据实时共享。</div>
@@ -2552,6 +2561,28 @@ async function afterLogin(){
 function withTimeout(p, ms){
   return Promise.race([ p, new Promise((_, rej)=>setTimeout(()=>rej(new Error("请求超时（"+Math.round(ms/1000)+"s）")), ms)) ]);
 }
+// 登录成功后按勾选把账号/密码存到本机（记住密码为明文，仅私人设备建议）
+function persistRemembered(){
+  try{
+    const email=document.getElementById("authEmail").value.trim();
+    const pass=document.getElementById("authPass").value;
+    const rmEmail=document.getElementById("rmEmail").checked;
+    const rmPass=document.getElementById("rmPass").checked;
+    if(rmEmail){ localStorage.setItem("erp_rm_email","1"); localStorage.setItem("erp_remember_email",email); }
+    else { localStorage.removeItem("erp_rm_email"); localStorage.removeItem("erp_remember_email"); }
+    if(rmPass){ localStorage.setItem("erp_rm_pass","1"); localStorage.setItem("erp_remember_pass",pass); }
+    else { localStorage.removeItem("erp_rm_pass"); localStorage.removeItem("erp_remember_pass"); }
+  }catch(e){}
+}
+// 打开登录页时回填上次记住的账号/密码并勾选对应项
+function fillRemembered(){
+  try{
+    const em=localStorage.getItem("erp_remember_email")||"";
+    const pw=localStorage.getItem("erp_remember_pass")||"";
+    if(em){ const e=document.getElementById("authEmail"); if(e) e.value=em; const c=document.getElementById("rmEmail"); if(c) c.checked=true; }
+    if(pw){ const p=document.getElementById("authPass"); if(p) p.value=pw; const c=document.getElementById("rmPass"); if(c) c.checked=true; }
+  }catch(e){}
+}
 function wireAuth(){
   const loginBtn=document.getElementById("authLogin");
   const signupBtn=document.getElementById("authSignup");
@@ -2565,7 +2596,7 @@ function wireAuth(){
     try{
       const {error}=await withTimeout(DB.client.auth.signInWithPassword({email,password:pass}),15000);
       if(error){ err.textContent=error.message; }
-      else { err.textContent=""; await afterLogin(); }
+      else { err.textContent=""; persistRemembered(); await afterLogin(); }
     }catch(e){ err.textContent="⚠ 无法连接 Supabase 服务器（网络或地区限制）："+(e&&e.message||e)+"。请检查网络或切换可访问的网络后重试。"; }
     finally{ setBusy(false); }
   };
@@ -2581,7 +2612,7 @@ function wireAuth(){
       else {
         err.style.color="var(--ok)";
         err.textContent="注册成功。"+(data&&data.session?"已自动登录。":"若提示查收验证邮件，请先确认（管理员已关闭邮件确认则无需邮件）。");
-        if(data&&data.session){ await afterLogin(); }
+        if(data&&data.session){ persistRemembered(); await afterLogin(); }
       }
     }catch(e){ err.textContent="⚠ 无法连接 Supabase 服务器（网络或地区限制）："+(e&&e.message||e)+"。请检查网络或切换可访问的网络后重试。"; }
     finally{ setBusy(false); }
@@ -2591,7 +2622,15 @@ function wireAuth(){
   const passEl=document.getElementById("authPass");
   if(passEl) passEl.addEventListener("keydown",e=>{ if(e.key==="Enter") login(); });
   const lo=document.getElementById("btnLogout");
-  if(lo) lo.onclick=async()=>{ try{ await DB.client.auth.signOut(); }catch(e){} location.reload(); };
+  if(lo) lo.onclick=async()=>{
+    // 登出前按「记住」勾选决定保留还是清除本机账号/密码
+    try{
+      const rmEmail=document.getElementById("rmEmail").checked;
+      const rmPass=document.getElementById("rmPass").checked;
+      if(!rmEmail){ localStorage.removeItem("erp_rm_email"); localStorage.removeItem("erp_remember_email"); }
+      if(!rmPass){ localStorage.removeItem("erp_rm_pass"); localStorage.removeItem("erp_remember_pass"); }
+    }catch(e){}
+    try{ await DB.client.auth.signOut(); }catch(e){} location.reload(); };
 }
 function wireCloudButtons(){
   const bExp=document.getElementById("btnBackupAll");
@@ -2667,6 +2706,7 @@ async function startApp(){
       return;
     }
     const mask=document.getElementById("authMask"); if(mask) mask.style.display="flex";
+    fillRemembered();
     wireAuth();
     return;
   }
