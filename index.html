@@ -1,0 +1,2651 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>上海劲拓电器有限公司 · ERP 物料编码工作台</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#f5f6f8; --panel:#ffffff; --ink:#1f2329; --sub:#646a73; --line:#e5e6eb;
+    --brand:#2f6fed; --brand-soft:#eaf1ff; --ok:#1aab6b; --warn:#e37318; --bad:#d92020;
+    --chip:#eef0f3;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       background:var(--bg);color:var(--ink);font-size:14px;line-height:1.6}
+  /* 顶部公司抬头 */
+  header{position:relative;overflow:hidden;color:#fff;padding:16px 24px 19px;
+    background:linear-gradient(112deg,#072048 0%,#123f8f 32%,#2f6fed 66%,#2ad0ff 100%);
+    box-shadow:0 3px 20px rgba(12,44,110,.30)}
+  header::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.09;
+    background:repeating-linear-gradient(135deg,#fff 0 2px,transparent 2px 16px)}
+  header::after{content:"";position:absolute;top:-20%;left:-45%;width:32%;height:140%;pointer-events:none;
+    background:linear-gradient(100deg,transparent,rgba(255,255,255,.20),transparent);
+    transform:skewX(-12deg);animation:hdSweep 8s ease-in-out infinite}
+  @keyframes hdSweep{0%{left:-50%}60%,100%{left:130%}}
+  .hd-inner{position:relative;z-index:1;max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:18px}
+  .hd-logo{flex:none;width:62px;height:62px;border-radius:15px;display:flex;align-items:center;justify-content:center;
+    background:#fff;padding:5px;
+    box-shadow:0 8px 20px rgba(2,22,60,.38),0 0 0 1px rgba(255,255,255,.6),inset 0 1px 0 rgba(255,255,255,.9)}
+  .hd-logo img{width:100%;height:100%;object-fit:contain;display:block}
+  .hd-txt{min-width:0}
+  .hd-en{font-size:11px;letter-spacing:2.6px;text-transform:uppercase;color:rgba(255,255,255,.72);font-weight:600}
+  .hd-cn{margin:1px 0 0;font-size:29px;line-height:1.28;font-weight:800;letter-spacing:4px;white-space:nowrap;color:#fff;
+    background:linear-gradient(180deg,#ffffff 26%,#cfe9ff 100%);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    filter:drop-shadow(0 2px 6px rgba(0,28,80,.35))}
+  .hd-sub{margin:5px 0 0;font-size:12.5px;color:rgba(255,255,255,.86);letter-spacing:.4px}
+  .hd-sub b{color:#9fe0ff;font-weight:700}
+  .hd-bar{position:absolute;left:0;right:0;bottom:0;height:3px;z-index:2;
+    background:linear-gradient(90deg,#0b3f8f,#2f6fed 30%,#2ad0ff 70%,#8ef0ff)}
+  .hd-right{margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex:none}
+  .hd-badge{font-size:11px;font-weight:700;letter-spacing:1px;padding:3px 11px;border-radius:20px;white-space:nowrap;
+    background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.32);color:#fff}
+  .hd-badge.gold{background:rgba(42,208,255,.18);border-color:rgba(142,240,255,.6);color:#b9ecff}
+  @media (max-width:840px){
+    .hd-inner{flex-wrap:wrap;gap:12px}
+    .hd-right{margin-left:0;flex-direction:row;align-items:center}
+    .hd-cn{font-size:22px;letter-spacing:2px;white-space:normal}
+    .hd-logo{width:48px;height:48px;border-radius:12px;padding:4px}
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:20px 24px 60px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-bottom:18px}
+  .panel h2{margin:0 0 14px;font-size:16px;border-left:4px solid var(--brand);padding-left:10px}
+  .grid{display:grid;gap:14px}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:1fr 1fr}
+  /* 分类路径流水线：6 段一行，宽度按各自选项文字长度自适应（min 88px ~ 1fr 上限），
+     段间用 › 分隔，视觉上读起来像「01 富耐连 › 03 成品 › …› 0001」 */
+  .pipe{display:flex;align-items:flex-end;gap:0;flex-wrap:wrap}
+  .pipe-cell{position:relative;flex:1 1 118px;min-width:96px;max-width:230px;padding-right:16px;margin-right:16px}
+  .pipe-cell:last-child{padding-right:0;margin-right:0}
+  .pipe-cell::after{content:"›";position:absolute;right:0;top:22px;color:var(--sub);font-size:17px;font-weight:700;line-height:1;pointer-events:none}
+  .pipe-cell:last-child::after{content:none}
+  .pipe-cell label{font-size:12px;white-space:nowrap}
+  label{display:block;font-size:12px;color:var(--sub);margin-bottom:5px}
+  select,input[type=text]{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);font-size:14px}
+  select:disabled{background:var(--chip);color:var(--sub)}
+  .row{display:flex;gap:18px;align-items:flex-end;flex-wrap:wrap}
+  .row>div{flex:1;min-width:150px}
+  .radio{display:inline-flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .radio label{margin:0;color:var(--ink);font-size:14px}
+  button{cursor:pointer;border:1px solid var(--brand);background:var(--brand);color:#fff;padding:9px 16px;border-radius:7px;font-size:14px;font-weight:600}
+  button.ghost{background:#fff;color:var(--brand)}
+  button.sm{padding:4px 10px;font-size:12px;border-radius:6px}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .btnrow{display:flex;gap:10px;margin-top:6px;flex-wrap:wrap}
+  .code-big{font-family:"SFMono-Regular",Consolas,monospace;font-size:30px;letter-spacing:3px;font-weight:700;color:var(--brand);
+            background:var(--brand-soft);border:1px dashed var(--brand);border-radius:8px;padding:12px 16px;text-align:center;margin:10px 0}
+  .tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:600}
+  .tag.new{background:#e8f7f0;color:var(--ok)}
+  .tag.reuse{background:#fff4e6;color:var(--warn)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--chip);color:var(--sub);font-weight:600;position:sticky;top:0}
+  .tbl-scroll{max-height:360px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+  /* ③ 编码台账 / ④ 分类规则 / ⑤ 现存编码：放大纵向可视区，少滚动多看信息 */
+  #pan3 .tbl-scroll,#pan4 .tbl-scroll,#pan5 .tbl-scroll{max-height:calc(100vh - 230px);min-height:360px}
+  @media(max-width:840px){ #pan3 .tbl-scroll,#pan4 .tbl-scroll,#pan5 .tbl-scroll{max-height:60vh} }
+  .muted{color:var(--sub);font-size:12px}
+  .analysis{background:#fbfcfe;border:1px solid var(--line);border-radius:8px;padding:12px 14px;font-size:13px}
+  .analysis b{color:var(--brand)}
+  pre.json{background:#0f172a;color:#e2e8f0;padding:14px;border-radius:8px;overflow:auto;font-size:12.5px;line-height:1.5;margin:10px 0 0}
+  .selfcheck{list-style:none;padding:0;margin:8px 0 0;display:flex;flex-wrap:wrap;gap:8px}
+  .selfcheck li{background:var(--chip);border-radius:6px;padding:4px 10px;font-size:12px}
+  .selfcheck li.pass{background:#e8f7f0;color:var(--ok)}
+  .warnbox{background:#fff4e6;border:1px solid #ffd591;border-radius:8px;padding:10px 12px;color:var(--warn);font-size:13px;margin-top:10px}
+  .note{font-size:12px;color:var(--sub);margin-top:6px}
+  /* 分类管理：五级独立品类表 */
+  .cls-nav{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:#fbfcfe}
+  .lvl-table{border:1px solid var(--line);border-radius:8px;background:#fff;margin-bottom:12px;overflow:hidden}
+  .lvl-table:last-child{margin-bottom:0}
+  .lv-head{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fbfcfe;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .lv-title{font-weight:700;font-size:13px;color:var(--brand)}
+  .lv-note{font-size:11px;color:var(--sub)}
+  .lv-add{margin-left:auto}
+  .lv-tbl{width:100%;border-collapse:collapse}
+  .lv-tbl th,.lv-tbl td{border-bottom:1px solid var(--line);padding:5px 8px;font-size:12px;text-align:left;vertical-align:middle}
+  .lv-tbl thead th{background:#fbfcfe;font-weight:600;position:sticky;top:0}
+  .lv-tbl tbody tr:hover{background:var(--brand-soft)}
+  .lv-tbl input{width:100%;border:1px solid var(--line);border-radius:4px;padding:3px 6px;font-size:12px;box-sizing:border-box;background:#fff}
+  .lv-tbl input.in-code{width:56px;font-family:monospace;font-weight:600;color:var(--brand)}
+  .lv-tbl .ctx{font-size:11px;color:var(--sub);white-space:nowrap}
+  .lv-tbl .row-act{white-space:nowrap}
+  .lv-tbl .row-act button{border:1px solid var(--bad);color:var(--bad);background:#fff;border-radius:6px;padding:2px 9px;font-size:12px;cursor:pointer}
+  .lv-tbl .row-act button:hover{background:var(--bad);color:#fff}
+  /* 紧凑表格（零~四级去掉差异/说明列后更简洁） */
+  .lv-tbl.compact{min-width:340px}
+  .lv-tbl.compact th,.lv-tbl.compact td{padding:4px 8px}
+  .lv-tbl.compact input{padding:3px 7px}
+  .lv-tbl.compact .in-code{width:52px}
+  .lv-tbl.compact .row-act button{padding:2px 8px}
+  /* 上级选择器：独立下拉，选上级后渲染其子项行（零~四级） */
+  .sel-parent{display:flex;gap:10px;align-items:center;margin:4px 0 10px}
+  .sel-parent label{font-size:12px;color:var(--sub);margin:0;white-space:nowrap}
+  .sel-parent select{width:auto;min-width:260px;flex:1;max-width:420px}
+  /* 零级：码 / 名称 / 删除 与下拉同一行 */
+  .zero-row,.lvl-row{display:flex;gap:8px;align-items:center;flex:none}
+  /* 折叠组头：单行紧凑 */
+  .l5-group>button{gap:6px}
+  .l5-group>button .ctx{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* 五级表：按分支折叠（默认收起，可展开） */
+  .l5-ctrl{display:flex;gap:8px;align-items:center;margin-left:auto}
+  .l5-group{border:1px solid var(--line);border-radius:8px;background:#fff;margin-bottom:8px;overflow:hidden}
+  .l5-group:last-child{margin-bottom:0}
+  .l5-group>button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:7px 10px;background:#fbfcfe;border:none;border-bottom:1px solid var(--line);cursor:pointer;font-size:12.5px;color:var(--ink)}
+  .l5-group>button:hover{background:var(--brand-soft)}
+  .l5-group>button .chev{color:var(--brand);font-size:11px;width:12px;transition:transform .15s}
+  .l5-group.open>button .chev{transform:rotate(90deg)}
+  .l5-group>button .ctx{flex:1;font-weight:600}
+  .l5-group>button .cnt{color:var(--sub);font-size:11px}
+  .l5-body{display:none}
+  .l5-group.open .l5-body{display:block}
+  .l5-body .lv-tbl{border-radius:0}
+  /* 零~四级表也按上级/分支折叠（复用 l5-group 折叠样式）；零级组头不加分隔线（其后是单张表而非每组分表） */
+  .zero-table .l5-group>button{border-bottom:none}
+  .zero-table .l5-group{border:none;background:transparent}
+  /* 台账（③）：本机持久化 + 单行管理 */
+  .log-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+  .pill{display:inline-block;background:var(--chip);color:var(--sub);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600}
+  .pill.ok{background:#e8f7f0;color:var(--ok)}
+  .pill b{font-weight:700}
+  #logMsg{font-size:12px;color:var(--warn)}
+  #logTable td.log-act{white-space:nowrap;text-align:center}
+  #logTable tbody tr:hover{background:var(--brand-soft)}
+  .log-del{border:1px solid var(--bad);color:var(--bad);background:#fff;border-radius:6px;padding:2px 9px;font-size:12px;font-weight:600}
+  .log-del:hover{background:var(--bad);color:#fff}
+  #logTable tbody tr.flash td{background:#fff4e6}
+  td.erp{font-family:"SFMono-Regular",Consolas,monospace;font-weight:600;color:var(--brand);white-space:nowrap}
+  /* 现存编码表（⑤）：复制 + 行内修订 */
+  .ckline{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--sub);cursor:pointer;user-select:none}
+  .ckline input{margin:0}
+  .cp-btn{border:1px solid var(--line);background:#fff;color:var(--brand);border-radius:6px;padding:1px 7px;
+    font-size:11.5px;font-weight:600;margin-left:8px;cursor:pointer;vertical-align:middle}
+  .cp-btn:hover{background:var(--brand-soft);border-color:var(--brand)}
+  .cp-btn.done{background:#e8f7f0;border-color:var(--ok);color:var(--ok)}
+  #exTable td.ex-act{white-space:nowrap;text-align:right}
+  #exTable tbody tr.ex-ed td{background:#fff8ea}
+  #exTable tbody tr.ex-editing td{background:var(--brand-soft)}
+  #exTable input.ex-inp{width:100%;padding:3px 6px;font-size:13px;border:1px solid var(--brand);border-radius:5px}
+  .ex-btn{border:1px solid var(--line);background:#fff;color:var(--sub);border-radius:6px;padding:2px 9px;font-size:12px;font-weight:600}
+  .ex-btn:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
+  .ex-btn.save{border-color:var(--ok);color:var(--ok)}
+  .ex-btn.save:hover{background:var(--ok);color:#fff}
+  .ex-btn.bad{border-color:var(--bad);color:var(--bad)}
+  .ex-btn.bad:hover{background:var(--bad);color:#fff}
+  .ex-mark{display:inline-block;margin-left:6px;font-size:11px;font-weight:700;color:var(--warn);vertical-align:middle}
+  /* 批量导入预览（①） */
+  #batchArea tbody tr.batch-err td{background:#fff1f0;color:var(--bad)}
+  #batchArea select.b-sel{padding:3px 6px;font-size:12px;min-width:190px}
+  /* 弹窗 */
+  .modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:50}
+  .modal{background:#fff;border-radius:12px;padding:22px 24px;width:440px;max-width:92vw;box-shadow:0 10px 40px rgba(0,0,0,.2)}
+  .modal h3{margin:0 0 14px;font-size:16px}
+  .modal .btnrow{margin-top:14px}
+  .hint{font-size:12px;color:var(--sub);margin-top:4px}
+  /* 完整分支表格弹窗 */
+  .tbl-branch{width:100%;border-collapse:collapse;margin:4px 0}
+  .tbl-branch th,.tbl-branch td{border:1px solid var(--line);padding:5px 8px;font-size:12px;text-align:left}
+  .tbl-branch th{background:#fbfcfe;font-weight:600}
+  .tbl-branch input{width:100%;border:1px solid var(--line);border-radius:4px;padding:4px 6px;font-size:12px;box-sizing:border-box}
+  /* ============ 模块导航：左侧栏（手机端为顶部横条），点哪显示哪 ============ */
+  .layout{display:flex;gap:18px;align-items:flex-start}
+  .main{flex:1;min-width:0}
+  .sidenav{flex:none;width:158px;position:sticky;top:14px;background:var(--panel);
+    border:1px solid var(--line);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:2px}
+  .nav-item{display:flex;align-items:center;gap:9px;width:100%;text-align:left;padding:9px 11px;
+    border:none;background:transparent;border-radius:8px;font-size:13.5px;font-weight:600;color:var(--ink);cursor:pointer}
+  .nav-item svg{flex:none;width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  .nav-item:hover{background:var(--brand-soft);color:var(--brand)}
+  .nav-item.on{background:var(--brand-soft);color:var(--brand)}
+  .nav-item.dim{opacity:.4}
+  .side-note{font-size:11px;color:var(--sub);padding:6px 11px 4px;line-height:1.5}
+  @media (max-width:880px){
+    .layout{display:block}
+    .sidenav{position:sticky;top:0;z-index:30;flex-direction:row;width:auto;gap:4px;padding:6px 8px;
+      margin:0 -24px 14px;border-radius:0;border-left:none;border-right:none;border-top:none;
+      overflow-x:auto;-webkit-overflow-scrolling:touch;box-shadow:0 2px 10px rgba(0,0,0,.07)}
+    .nav-item{flex:none;padding:7px 10px;font-size:12.5px;border-radius:7px}
+    .nav-item svg{width:14px;height:14px}
+    .side-note{display:none}
+  }
+  /* ── 分类路径流水线的窄屏适配（放在最后，确保覆盖前面的 flex 布局）── */
+  @media(max-width:880px){
+    .pipe{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .pipe-cell{flex:none;max-width:none;padding-right:0;margin-right:0}
+    .pipe-cell::after{content:none}
+  }
+  @media(max-width:560px){
+    .pipe{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+<style>
+  .auth-mask{position:fixed;inset:0;background:rgba(8,22,55,.55);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:9999}
+  .auth-card{background:#fff;border-radius:14px;padding:26px 28px;width:340px;max-width:92vw;box-shadow:0 20px 60px rgba(3,18,55,.4)}
+  .auth-card h3{margin:0 0 4px;font-size:18px}
+  .auth-card .muted{margin:0 0 16px;font-size:12.5px;color:var(--sub)}
+  .auth-card input{width:100%;padding:10px 12px;margin-bottom:10px;border:1px solid var(--line);border-radius:8px;font-size:14px;outline:none}
+  .auth-card input:focus{border-color:var(--brand)}
+  .auth-card button{width:100%;padding:10px;margin-top:6px;border-radius:8px;border:none;font-size:14px;cursor:pointer}
+  .auth-card .primary{background:var(--brand);color:#fff;font-weight:600}
+  .auth-card .ghost{background:#fff;border:1px solid var(--line);color:var(--sub)}
+  .auth-err{font-size:12.5px;color:var(--bad);min-height:16px;margin-bottom:6px}
+  .auth-hint{margin-top:12px;font-size:11.5px;color:var(--sub);line-height:1.5}
+  .user-bar{display:flex;align-items:center;gap:8px;flex-direction:row}
+  .user-bar .ue{font-size:12px;color:#fff;opacity:.92;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .user-bar .sync{font-size:11px;color:#9fe0ff;font-weight:600;white-space:nowrap}
+  .user-bar button.ghost{margin:0;padding:3px 10px;font-size:11px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.32);color:#fff}
+</style>
+</head>
+<body>
+<header>
+  <div class="hd-inner">
+    <div class="hd-logo" aria-hidden="true">
+      <img src="data:image/png;base64,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" alt="" width="108" height="93">
+    </div>
+    <div class="hd-txt">
+      <div class="hd-en">Shanghai KINTO Electric Co., Ltd.</div>
+      <h1 class="hd-cn">上海劲拓电器有限公司</h1>
+      <p class="hd-sub">ERP 物料编码工作台 · <b>13 位六层编码</b> · 零级(2) 一级(2) 二级(2) 三级(2) 四级(1) 五级(4) · 一物一码，自动流水</p>
+    </div>
+    <div class="hd-right">
+      <span class="hd-badge gold">KINTO · ERP CODE</span>
+      <span class="hd-badge">六层结构 · 13 位</span>
+      <div id="userBar" class="user-bar" style="display:none">
+        <span id="userEmail" class="ue"></span>
+        <span id="syncStat" class="sync"></span>
+        <button id="btnLogout" class="ghost sm">退出</button>
+      </div>
+    </div>
+  </div>
+  <div class="hd-bar"></div>
+</header>
+<div id="authMask" class="auth-mask" style="display:none">
+  <div class="auth-card">
+    <h3>登录 ERP 编码工作台</h3>
+    <p class="muted">多人共享同一份台账，请使用团队账号登录</p>
+    <input id="authEmail" type="email" placeholder="邮箱（各自注册或团队共用）">
+    <input id="authPass" type="password" placeholder="密码（至少 6 位）">
+    <div id="authErr" class="auth-err"></div>
+    <button id="authLogin" class="primary">登录</button>
+    <button id="authSignup" class="ghost">注册新账号</button>
+    <div class="auth-hint">首次使用点「注册」：邮箱 + 密码即可，无需验证邮件（管理员可在 Supabase 关闭邮件确认）。同一账号可在多设备登录，数据实时共享。</div>
+  </div>
+</div>
+<div class="wrap">
+<div class="layout">
+
+  <nav class="sidenav" id="sidenav">
+    <button class="nav-item on" data-panel="pan1" title="生成编码">
+      <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>生成编码</button>
+    <button class="nav-item dim" data-panel="resultPanel" title="结果与自检">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5.5"/></svg>结果与自检</button>
+    <button class="nav-item" data-panel="pan3" title="编码台账">
+      <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>编码台账</button>
+    <button class="nav-item" data-panel="pan4" title="分类规则查阅">
+      <svg viewBox="0 0 24 24"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>分类规则</button>
+    <button class="nav-item" data-panel="pan5" title="现存编码查阅">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>现存编码</button>
+    <button class="nav-item" data-panel="pan6" title="分类管理">
+      <svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M1 14h6M9 8h6M17 16h6"/></svg>分类管理</button>
+    <div class="side-note">点左侧切换模块，一次只显示一个，页面不再拉长</div>
+  </nav>
+
+  <main class="main">
+  <div class="panel" id="pan1">
+    <h2>① 生成编码</h2>
+    <!-- 分类路径流水线：一行 6 段（零级→一级→二级→三级→四级→五级），宽度按内容自适应；
+窄屏（≤880px）自动降为 3 列，避免挤成一团看不清 -->
+    <div class="pipe" id="pipeRow">
+      <div class="pipe-cell"><label title="零级（客户，2位）">零级</label><select id="selZero"></select></div>
+      <div class="pipe-cell"><label title="一级（物料分类，2位）">一级</label><select id="selL1" disabled></select></div>
+      <div class="pipe-cell"><label title="二级（材料类型，2位）">二级</label><select id="selL2" disabled></select></div>
+      <div class="pipe-cell"><label title="三级（材料分类，2位）">三级</label><select id="selL3" disabled></select></div>
+      <div class="pipe-cell"><label title="四级（来源，全树共用，1位）">四级</label><select id="selL4" disabled></select></div>
+      <div class="pipe-cell"><label title="五级（流水，4位，留空走自动流水）">五级</label><select id="selL5" disabled></select></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div style="flex:0 0 200px;min-width:200px">
+        <label title="选「手动指定」时生效，留空=自动流水">手动流水（选「手动指定」时生效）</label>
+        <input type="text" id="inL5manual" placeholder="如 0007，留空=自动">
+      </div>
+    </div>
+    <div class="note" style="margin-top:8px">五级（4位）在同分支内自动流水，无需选择：分支为空取「起始流水」，有现存码取最大+1。可在下方「⑥ 分类管理」面板调整起始流水。</div>
+    <div class="row" style="margin-top:14px">
+      <div>
+        <label>图号 / Drawing No.（选填，填了可精确命中复用）</label>
+        <input type="text" id="inDraw" placeholder="如：5115845 / Carton box">
+      </div>
+      <div>
+        <label>品名（必填）</label>
+        <input type="text" id="inName" placeholder="如：内六角沉头螺钉 / SMC绝缘板">
+      </div>
+      <div>
+        <label>规格 / 关键属性</label>
+        <input type="text" id="inSpec" placeholder="如：M8X25 / 3mm / 1220×2440">
+      </div>
+      <div>
+        <label>材质牌号（必填）</label>
+        <input type="text" id="inMat" list="dlMat" placeholder="如：T2-Y2 / ST12 / SUS304 / 1060-H24 / 5052-H32">
+        <datalist id="dlMat">
+          <option value="T2-Y2"></option>
+          <option value="ST12"></option>
+          <option value="SUS304"></option>
+          <option value="1060-H24"></option>
+          <option value="5052-H32"></option>
+        </datalist>
+      </div>
+    </div>
+    <div class="note" style="margin-top:6px"><b>品名</b>、<b>材质牌号</b>为必填（一物一码的判定要素）。<b>图号</b>是最精确的区分符：<b>填了图号就只认图号</b>——在本分支命中即建议复用，查不到即判为新物料；图号留空时才退一步按「品名 + 规格 + 材质」比对。（口径：图号不同即不同物料，不会被合并成同一个码）</div>
+    <div class="btnrow">
+      <button id="btnSuggest">生成建议（含分支复用核查）</button>
+      <button class="ghost" id="btnReset">清空</button>
+    </div>
+    <div id="suggestArea"></div>
+    <div class="btnrow" style="margin-top:12px;border-top:1px dashed var(--line);padding-top:12px">
+      <button class="ghost" id="btnBatchImport">批量录入（CSV 导入）</button>
+      <button class="ghost sm" id="btnBatchTpl">下载批量模板</button>
+      <span class="muted">整表一次判定：自动查重复用 / 同批连号分配五级，先看预览再写入台账</span>
+      <span id="verTag" class="muted" style="margin-left:auto;font-size:11px;opacity:.7"></span>
+      <input type="file" id="fileBatch" accept=".csv,.txt" style="display:none">
+    </div>
+    <div id="batchArea"></div>
+  </div>
+
+  <div class="panel" id="resultPanel" style="display:none">
+    <h2>② 结果与自检</h2>
+    <div id="analysisBox" class="analysis"></div>
+    <div class="code-big" id="codeBig"></div>
+    <div id="actionTag"></div>
+    <pre class="json" id="jsonBox"></pre>
+    <ul class="selfcheck" id="selfCheck"></ul>
+    <div class="btnrow">
+      <button id="btnRecord">记录到台账（③ · 仅单条）</button>
+    </div>
+  </div>
+
+  <div class="panel" id="pan3">
+    <h2>③ 编码台账（团队共享 · 实时同步）</h2>
+    <div class="log-head">
+      <button class="ghost sm" id="btnExportJson">导出 JSON</button>
+      <button class="ghost sm" id="btnExportCsv">导出 CSV</button>
+      <button class="ghost sm" id="btnBackupAll">全量备份</button>
+      <button class="ghost sm" id="btnRestoreAll">从备份恢复</button>
+      <button class="ghost sm" id="btnImportLocal">迁移本机旧数据</button>
+      <button class="ghost sm" id="btnClearLog">清空台账</button>
+      <span class="pill" id="logCount">共 0 条</span>
+      <span id="logMsg"></span>
+      <input type="file" id="fileRestore" accept=".json" style="display:none">
+    </div>
+    <div class="tbl-scroll"><table id="logTable"><thead>
+      <tr><th>#</th><th>记录时间</th><th>ERP 13位</th><th>图号</th><th>路径</th><th>动作</th><th>品名</th><th>规格</th><th>材料牌号</th><th>依据</th><th>操作</th></tr>
+    </thead><tbody></tbody></table></div>
+    <div class="note">已开启云端共享：台账存 Supabase，<b>团队所有登录成员看到同一份、实时互见</b>（右上角显示同步状态）。本地浏览器仍留一份缓存作兜底。只有「单行删除 / 清空台账」才会移除；「全量备份」可把台账+配置导出 JSON 归档（Free 层无自动备份，建议定期备份）。不回写源 xlsx。</div>
+  </div>
+
+  <div class="panel" id="pan4">
+    <h2>④ 分类规则查阅（分支判定权威源，随自定义实时更新）</h2>
+    <div class="note">差异维度决定「一物一码」的拆分维度。六级分类名称与差异维度可在下方「⑥ 分类管理」面板中自定义。各层级为<b>独立清单</b>（二级不挂一级、三级不挂二级），逐级列出。</div>
+    <div class="tbl-scroll" style="margin-top:10px"><table id="clsTable"><thead>
+      <tr><th>零级（客户）</th><th>一级</th><th>二级</th><th>三级</th><th>四级</th><th>差异维度 / 说明</th></tr>
+    </thead><tbody></tbody></table></div>
+  </div>
+
+  <div class="panel" id="pan5">
+    <h2>⑤ 现存编码查阅（可复制 · 可修订描述信息）</h2>
+    <div class="row" style="margin-bottom:8px">
+      <div><input type="text" id="srchEx" placeholder="按 ERP / 图号 / 品名 / 规格 模糊搜索"></div>
+    </div>
+    <div class="btnrow" style="margin:0 0 10px">
+      <button class="ghost sm" id="btnExportExCsv">导出现存编码(CSV)</button>
+      <button class="ghost sm" id="btnExportEdCfg">导出修订清单(CSV)</button>
+      <button class="ghost sm" id="btnRestoreEx">全部恢复为源数据</button>
+      <button class="ghost sm" id="btnCleanDup">清理重复图号</button>
+      <label class="ckline"><input type="checkbox" id="chkOnlyEd"> 只看已修订</label>
+      <span id="exCount" class="pill">—</span>
+      <span id="exMsg" class="note" style="margin-left:2px"></span>
+    </div>
+    <div class="tbl-scroll"><table id="exTable"><thead>
+      <tr><th>ERP 13位</th><th>图号</th><th>品名</th><th>规格</th><th>材料牌号</th><th>路径(零/一/二/三/四/五)</th><th>操作</th></tr>
+    </thead><tbody></tbody></table></div>
+    <div class="note">本表是<b>「现存编码」统一总表</b> = 源表(data.js) <b>∪</b> ③编码台账（本机生成）合并去重，每行左侧徽标标出来源（<span style="font-size:11px;padding:1px 5px;border-radius:6px;background:#e8eefc;color:#2b5fd0">源表</span> / <span style="font-size:11px;padding:1px 5px;border-radius:6px;background:#eafaf0;color:#1a9e5a">台账</span>）。点编码右侧「复制」可复制 13 位码；点「修订」可改<b>图号 / 品名 / 规格 / 材料牌号</b>（13 位码本身不可改 —— 它是物料主键；确需换码请在 ① 新建）。<b>材料牌号：源表行多为空</b>（旧 data.js 本身无材料字段），台账行显示生成时记录的材料牌号；在此修订台账行的材料牌号会写回 ③ 台账存储。<b>源表类修订写入修订层、台账类写入台账存储，均不改动 data.js 源文件</b>，可随时「全部恢复」或用「导出修订清单」回写源表。<b>「导出现存编码(CSV)」导出本页全部合并总表（含源表+台账、含当前所有列：ERP/图号/品名/规格/材料牌号/路径/来源），与「导出修订清单」互不影响。</b></div>
+  </div>
+
+  <div class="panel" id="pan6">
+    <h2>⑥ 分类管理（六级品类表，逐级独立增减）</h2>
+    <div class="note">零级=客户（01 富耐连、02 中天科技…）、一级=物料分类、二级=材料类型、三级=材料分类、四级=来源（0 自制件/1 采购件）、五级=流水（4位）。<b>一~四级均为独立清单</b>：二级不挂一级下、三级不挂二级下，各级单独增减。五级表每行=某「一+二+三+四」分支下一条流水码。改动自动保存本地，可导出备份 / 导入 / 从源表重置。</div>
+    <div id="clsEmptyTip"></div>
+    <div class="btnrow" style="margin:10px 0 8px">
+      <button class="ghost sm" id="btnExportCsvCfg">导出分类(CSV)</button>
+      <button class="ghost sm" id="btnImportCsvCfg">导入分类(CSV)</button>
+      <button class="ghost sm" id="btnTplCsvCfg">下载 CSV 模板</button>
+      <span style="width:1px;height:20px;background:var(--line);align-self:center"></span>
+      <button class="ghost sm" id="btnExportCfg">导出配置(JSON)</button>
+      <button class="ghost sm" id="btnImportCfg">导入配置(JSON)</button>
+      <button class="ghost sm" id="btnResetCfg">从源表重置</button>
+      <input type="file" id="fileCfg" accept=".json" style="display:none">
+      <input type="file" id="fileCsv" accept=".csv,.txt" style="display:none">
+    </div>
+    <div style="margin:0 0 10px">
+      <label style="display:inline-flex;gap:6px;align-items:center;margin:0;font-size:13px;color:var(--ink);cursor:pointer">
+        <input type="checkbox" id="chkCsvPrune" style="width:auto;margin:0"> 导入 CSV 时，同步删除文件中未列出的零~四级分类（含其五级流水）
+      </label>
+    </div>
+    <div id="csvMsg"></div>
+    <div class="note">CSV 列：<code>层级,零级码,零级名称,一级码,一级名称,二级码,二级名称,三级码,三级名称,四级码,四级名称,差异维度,说明</code>（可用 Excel 直接打开编辑）。「层级」填 零级/一级/二级/三级/四级，<b>每级一张独立清单</b>——每行只填本级的码和名称（上级列留空即可），二级不挂一级、三级不挂二级，不会产生重复组合。导入按「码」匹配：已存在则更新名称/差异维度/说明，不存在则新建，<b>默认不删除</b>。五级流水不进 CSV，导入后原样保留。</div>
+
+    <div class="cls-nav">
+      <div class="note" style="margin-bottom:10px">零级：下拉选客户 → 旁边「改名 / 删除」。一~四级：下拉列出该级全部条目 → 旁边「改名 / 删除」（四级来源为全局共用枚举，只列 0 自制件 / 1 采购件）。五级：按「一+二+三+四」分支折叠，每行一条流水，可就地改码/改名/填说明，或「按自动流水补下一行」。</div>
+      <div id="clsTables"></div>
+      <div class="btnrow" style="margin-top:10px">
+        <span>
+          <label>起始流水（分支为空时）</label>
+        </span>
+        <input type="text" id="inL5seed" value="1" style="max-width:80px;width:80px">
+      </div>
+    </div>
+  </div>
+
+  </main>
+</div>
+
+</div>
+
+<!-- 编辑/新增节点弹窗 -->
+<div id="modal" class="modal-mask">
+  <div class="modal">
+    <h3 id="modalTitle">编辑</h3>
+    <label>编码（数字）</label>
+    <input type="text" id="mCode" placeholder="如 01 / 1 / 0007">
+    <label>名称</label>
+    <input type="text" id="mName" placeholder="如 材料 / 螺栓 / 自制件">
+    <div id="mExtra">
+      <label>差异维度（选填，本级生效）</label>
+      <input type="text" id="mDiff" placeholder="如 头部形状 × 型号 × 表面处理">
+      <label>说明（选填）</label>
+      <input type="text" id="mNote" placeholder="补充说明">
+    </div>
+    <div id="modalErr" class="warnbox" style="display:none"></div>
+    <div class="btnrow">
+      <button id="mSave">保存</button>
+      <button class="ghost" id="mCancel">取消</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// 自动生成，请勿手改；改源 xlsx 后重跑 build_data.py
+// 2026-10-10：编码规则变更，旧 520 条现存编码及旧分类规则全部废弃（未迁移）。
+// 旧数据完整备份：备份/20261010_0033/data.js（520 条，仅留档，不再使用）
+const ROOT = "01";
+const CLASSIFICATION = [
+];
+const EXISTING = [
+];
+const BUILD_AT = "2026-10-10";
+
+</script>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const norm = s => (s||"").toLowerCase().replace(/\s+/g,"").replace(/[×x*]/g,"x");
+
+// ============ 数据模型：六级统一树（零~四级可自定义，五级自动流水） ============
+// 每个节点: { name, diff?, note?, children: { code -> node } }
+// 层级 keys: zero(2位) → l1(2位) → l2(2位) → l3(2位) → l4(1位) → l5(4位,自动流水)
+const LVL_ORDER=['zero','l1','l2','l3','l4','l5'];
+const LVL_CHILD = {zero:'l1', l1:'l2', l2:'l3', l3:'l4', l4:'l5', l5:null};
+const LVL_NAME  = {zero:'零级', l1:'一级', l2:'二级', l3:'三级', l4:'四级', l5:'五级'};
+const LVL_LEN   = {zero:2, l1:2, l2:2, l3:2, l4:1, l5:4};
+
+// 共用分类根：一级~五级全部挂在它下面，所有客户共用同一套物料分类
+const CAT_ROOT = "#";
+const isClient = (code)=> code!==CAT_ROOT;   // root 下一段：非 '#' 即客户
+
+// ============ 数据模型：六级「平级清单」（二级/三级与上级解耦） ============
+// v6 起：二级不再挂一级下、三级不再挂二级下。每级是独立字典，互不组合：
+//   CFG.lv.zero = { "01":{name} }                        零级=客户
+//   CFG.lv.l1   = { "03":{name,diff,note} }              一级（独立清单）
+//   CFG.lv.l2   = { "01":{name,diff,note} }              二级（独立清单，与一级无关）
+//   CFG.lv.l3   = { "00":{name,diff,note} }              三级（独立清单，与二级无关）
+//   CFG.lv.l4   = { "0":{name} }                         四级=全局共用枚举
+//   CFG.lv.l5   = { "030700"+"0": { "0001":{name,note} } }  五级流水按「一+二+三+四」7位前缀分组
+// 13 位编码生成不受影响：前缀拼接 + EXISTING 前缀流水，与树形无关。
+const CLIENTS=[["01","富耐连"],["02","中天科技"]];
+function seedCFG(){
+  const lv={ zero:{}, l1:{}, l2:{}, l3:{}, l4:{}, l5:{} };
+  // 0) 客户零级
+  CLIENTS.forEach(([c,nm])=>{ lv.zero[c]={name:nm||("客户"+c)}; });
+  // 1) 现存编码：据实生成各级独立清单 + 五级流水分组（全按码去重）
+  EXISTING.forEach(e=>{
+    if(!lv.l1[e.l1]) lv.l1[e.l1]={name:"分支"+e.l1,diff:"",note:""};
+    if(!lv.l2[e.l2]) lv.l2[e.l2]={name:"分支"+e.l2,diff:"",note:""};
+    if(!lv.l3[e.l3]) lv.l3[e.l3]={name:"分支"+e.l3,diff:"",note:""};
+    if(!lv.l4[e.l4]) lv.l4[e.l4]={name:({"0":"自制件","1":"采购件"})[e.l4]||("来源"+e.l4),diff:"",note:""};
+    const fk=e.l1+e.l2+e.l3+e.l4;
+    if(!lv.l5[fk]) lv.l5[fk]={};
+    if(!lv.l5[fk][e.l5]) lv.l5[fk][e.l5]={name:"流水"+e.l5,note:""};
+  });
+  // 2) 分类规则：仅为已存在的分类分支补 名称/差异维度/说明（不新建）
+  CLASSIFICATION.forEach(c=>{
+    const a=lv.l1[c.l1]; if(!a) return;
+    if(c.l1n) a.name=c.l1n;
+    const b=lv.l2[c.l2]; if(b&&c.l2n) b.name=c.l2n;
+    const cn=lv.l3[c.l3]; if(cn){ if(c.l3n) cn.name=c.l3n; cn.diff=c.diff||cn.diff||""; cn.note=c.note||cn.note||""; }
+  });
+  return { lv, l5seed:1 };
+}
+// 旧版 v5（嵌套树）配置 → v6 平级清单转换。
+// 仅用于「导入旧的 v5 格式 JSON 配置」这一条路径；本机缓存自 2026-10-10 起不再自动迁移（规则已变，全部重来）。
+function migrateV5(o){
+  try{
+    const cat=o.root&&o.root[CAT_ROOT];
+    if(!cat||!cat.children) return null;
+    const lv={ zero:{}, l1:{}, l2:{}, l3:{}, l4:{}, l5:{} };
+    Object.keys(o.root).forEach(c=>{ if(c!==CAT_ROOT) lv.zero[c]={name:(o.root[c]&&o.root[c].name)||("客户"+c)}; });
+    const tally={};                                          // 维度 -> 码 -> {名称:次数}
+    const vote=(dim,code,nm)=>{ if(!nm) return; if(!tally[dim]) tally[dim]={}; if(!tally[dim][code]) tally[dim][code]={}; tally[dim][code][nm]=(tally[dim][code][nm]||0)+1; };
+    const best=(dim,code,fb)=>{ const m=tally[dim]&&tally[dim][code]; if(!m) return fb;
+      let bn=fb,bc=-1; Object.keys(m).forEach(nm=>{ if(m[nm]>bc||(m[nm]===bc&&nm!==fb&&nm.indexOf("分支")!==0)){ bc=m[nm]; bn=nm; } }); return bn; };
+    Object.keys(cat.children).forEach(a=>{
+      const na=cat.children[a];
+      if(!lv.l1[a]) lv.l1[a]={name:na.name||("分支"+a),diff:na.diff||"",note:na.note||""};
+      Object.keys(na.children||{}).forEach(b=>{
+        const nb=na.children[b];
+        vote("l2",b,nb&&nb.name);
+        Object.keys((nb&&nb.children)||{}).forEach(c3=>{
+          const nc=nb.children[c3];
+          vote("l3",c3,nc&&nc.name);
+          if(nc&&nc.diff) vote("l3d",c3,nc.diff);
+          if(nc&&nc.note) vote("l3n",c3,nc.note);
+          Object.keys((nc&&nc.children)||{}).forEach(d=>{
+            const nd=nc.children[d];
+            vote("l4",d,nd&&nd.name);
+            const fk=a+b+c3+d, g=lv.l5[fk]||(lv.l5[fk]={});
+            Object.keys((nd&&nd.children)||{}).forEach(e5=>{
+              const n5=nd.children[e5];
+              if(!g[e5]) g[e5]={name:(n5&&n5.name)||("流水"+e5),note:(n5&&n5.note)||""};
+            });
+          });
+        });
+      });
+    });
+    Object.keys(tally.l2||{}).forEach(c=>{ lv.l2[c]={name:best("l2",c,"分支"+c),diff:"",note:""}; });
+    Object.keys(tally.l3||{}).forEach(c=>{ lv.l3[c]={name:best("l3",c,"分支"+c),diff:best("l3d",c,""),note:best("l3n",c,"")}; });
+    Object.keys(tally.l4||{}).forEach(c=>{ lv.l4[c]={name:best("l4",c,({"0":"自制件","1":"采购件"})[c]||("来源"+c)),diff:"",note:""}; });
+    if(Object.keys(lv.l1).length===0) return null;
+    return { lv, l5seed:(typeof o.l5seed==="number")?o.l5seed:1 };
+  }catch(err){ return null; }
+}
+// 缓存键：2026-10-10 编码规则变更 → v7。旧版本（v2~v6）缓存一律作废并清除，
+// 让所有浏览器都从当前源表 data.js 重新起算（旧规则下的分类/流水不再回来了）。
+const CFG_CACHE_KEY = "erp_cfg_v7";
+const CFG_OLD_KEYS = ["erp_cfg_v6","erp_cfg_v5","erp_cfg_v4","erp_cfg_v3","erp_cfg_v2"];
+function loadCFG(){
+  try{
+    const s=localStorage.getItem(CFG_CACHE_KEY);
+    if(s){ const o=JSON.parse(s); if(o&&o.lv&&o.lv.zero&&o.lv.l1&&o.lv.l2&&o.lv.l3&&o.lv.l4&&o.lv.l5) return o; }
+  }catch(e){}
+  try{ CFG_OLD_KEYS.forEach(k=>localStorage.removeItem(k)); }catch(e){}
+  return seedCFG();
+}
+function saveCFG(){ saveCFGLocal(); if(DB.enabled && DB.user) DB.saveConfig("CFG", CFG); }
+let CFG = loadCFG();
+if(typeof CFG.l5seed!=="number") CFG.l5seed=1;
+
+// ---- 通用路径遍历（v6 平级清单语义） ----
+// 路径仍按 [客户码, 一级, 二级, …] / [CAT_ROOT('#'), 一级, 二级, …] 的写法解析，
+// 但每段只查自己那级字典，**不再依赖上级**（二级/三级已与上级解耦）。
+// 路径里的零级段/上级段仅用于拼 13 位码与显示，定位节点时被忽略。
+function clientKeys(){ return Object.keys(CFG.lv.zero).sort(); }
+function clientsMap(){ const o={}; clientKeys().forEach(k=>{ o[k]=CFG.lv.zero[k]; }); return o; }
+function lvlDict(L){ return (CFG.lv&&CFG.lv[L])||{}; }
+function nodeByPath(path){
+  if(path.length===0) return CFG;
+  if(path.length===1 && path[0]!==CAT_ROOT) return CFG.lv.zero[path[0]];   // 客户节点
+  const last=path[path.length-1];
+  const L=LVL_ORDER[path.length-1];                                        // 长度2→l1，3→l2 …
+  const n=lvlDict(L)[last];
+  return n||null;
+}
+function childContainerOf(path){
+  if(path.length===0) return clientsMap();                                 // 零级层 = 客户集合
+  const L=LVL_CHILD[LVL_ORDER[path.length-1]];                             // 下一级
+  if(!L) return {};
+  if(L==="l5"){                                                            // 五级流水按 7 位前缀分组
+    const fk=path.slice(1).slice(-4).join("");                             // 一+二+三+四 = 7 位
+    return CFG.lv.l5[fk]||{};
+  }
+  return lvlDict(L);
+}
+function nodeExists(path){ return !!nodeByPath(path); }
+function nodeName(path){ try{ const n=nodeByPath(path); return (n&&n.name)||("?"); }catch(e){ return "?"; } }
+function nodeDiff(path){ try{ const n=nodeByPath(path); return (n&&n.diff)||""; }catch(e){ return ""; } }
+// ============ 生成面板：六级级联下拉 ============
+// 零级 = 客户；一级~五级 = 共用物料分类（挂在 CAT_ROOT 下，所有客户共享）
+// 选任意客户 → 一~四级下拉内容相同（共用分类）
+function fillLevel(selId, placeholder, parentPath, keepVal){
+  const sel=$(selId);
+  const cont=childContainerOf(parentPath);
+  const items=Object.keys(cont).sort();
+  sel.innerHTML='<option value="">'+placeholder+'</option>'+items.map(c=>`<option value="${c}">${c} ${cont[c].name||cont[c]}</option>`).join("");
+  sel.disabled = items.length===0;
+  if(keepVal && items.includes(keepVal)) sel.value=keepVal;
+  else sel.value="";
+  return items;
+}
+// 四级（来源）= 全局共用枚举，与「当前分支现存哪些来源」无关。
+// 现存编码里多数分支只有单一来源（19 个三级里 16 个只有 0 或只有 1），
+// 若按分支现子节点来列下拉，用户就选不到另一个来源 —— 故统一列全树出现的全部来源。
+function fillLevelL4(keepVal){
+  const sel=$("selL4");
+  const z=$("selZero").value,a=$("selL1").value,b=$("selL2").value,c=$("selL3").value;
+  if(!(z&&a&&b&&c)){
+    sel.innerHTML='<option value="">— 四级 —</option>'; sel.disabled=true; sel.value=""; return [];
+  }
+  const items=srcEnumItems();                       // [{code,name,count}] 已按码去重
+  sel.innerHTML='<option value="">— 四级 —</option>'+items.map(it=>`<option value="${it.code}">${it.code} ${it.name}</option>`).join("");
+  sel.disabled=items.length===0;
+  const codes=items.map(it=>it.code);
+  sel.value=(keepVal&&codes.includes(keepVal))?keepVal:"";
+  return codes;
+}
+// 选中某来源但该四级枚举里还没有这个码时补建（v6：四级独立清单，只有点生成建议时才写）
+function ensureL4Node(l1,l2,l3,l4){
+  const cont=lvlDict("l4");
+  if(cont[l4]) return false;
+  cont[l4]={name:({"0":"自制件","1":"采购件"})[l4]||("来源"+l4),diff:"",note:""};
+  saveCFG();
+  return true;
+}
+function refreshLevelCascade(){
+  const z=$("selZero").value;
+  fillLevel("selZero","— 零级 —",[], z);
+  // v6：二级/三级与上级解耦 —— 一~四级均为独立清单，选客户后直接全量可选
+  // （childContainerOf 按路径长度取层级字典：长1→一级、长2→二级…路径内容不影响结果）
+  fillLevel("selL1","— 一级 —",[z], $("selL1").value);
+  fillLevel("selL2","— 二级 —",[z,""], $("selL2").value);
+  fillLevel("selL3","— 三级 —",[z,"",""], $("selL3").value);
+  fillLevelL4($("selL4").value);                     // 四级 = 全局共用枚举，不随分支变
+  refreshSelL5(z,$("selL1").value,$("selL2").value,$("selL3").value,$("selL4").value);
+  autoWidthPipe();
+}
+// 流水线各段宽度自适应：按该下拉里「最长选项文字」估算所需宽度，
+// 短段（如四级只有「0 自制件/1 采购件」）自动收窄，把空间让给长段（如一级「03 成品」）。
+function autoWidthPipe(){
+  const row=$("pipeRow"); if(!row) return;
+  const cells=row.querySelectorAll(".pipe-cell");
+  cells.forEach(cell=>{
+    const sel=cell.querySelector("select"); if(!sel) return;
+    let max=0;
+    for(const o of sel.options){
+      const t=String(o.textContent||"");
+      // 中文按 2 个字符宽度估算，英数按 1 个
+      let w=0; for(const ch of t) w+=/[\u4e00-\u9fa5（）｜·]/.test(ch)?2:1;
+      if(w>max) max=w;
+    }
+    const minPx=84, maxPx=210;
+    const px=Math.max(minPx, Math.min(maxPx, max*7.6+30));
+    cell.style.flex="1 1 "+px+"px";
+    cell.style.maxWidth=maxPx+"px";
+  });
+}
+function refreshSelL5(z,a,b,c,d){
+  const sel=$("selL5");
+  if(z&&a&&b&&c&&d){
+    const cont=childContainerOf([z,a,b,c,d]);
+    const items=Object.keys(cont).sort();
+    sel.innerHTML='<option value="">— 五级（留空=自动流水） —</option>'+items.map(c2=>`<option value="${c2}">${c2} ${cont[c2].name||c2}</option>`).join("")+'<option value="__manual__">手动指定</option>';
+    sel.disabled=false;
+  } else {
+    sel.innerHTML='<option value="">— 五级 —</option>';
+    sel.disabled=true; sel.value="";
+  }
+  sel.value=""; $("inL5manual").value=""; $("inL5manual").disabled=true;
+}
+// 各 onchange：清空自身下方各级旧值后，统一从该级往下重建
+$("selZero").onchange=()=>{ $("selL1").value=""; $("selL2").value=""; $("selL3").value=""; $("selL4").value=""; refreshLevelCascade(); };
+$("selL1").onchange =()=>{ $("selL2").value=""; $("selL3").value=""; $("selL4").value=""; $("selL5").value=""; refreshFromSel("l2"); };
+$("selL2").onchange =()=>{ $("selL3").value=""; $("selL4").value=""; $("selL5").value=""; refreshFromSel("l3"); };
+$("selL3").onchange =()=>{ $("selL4").value=""; $("selL5").value=""; refreshFromSel("l4"); };
+$("selL4").onchange =()=>{ $("selL5").value=""; refreshFromSel("l5"); };
+$("selL5").onchange =()=>{ $("inL5manual").disabled = $("selL5").value!=="__manual__"; };
+function refreshFromSel(start){
+  const z=$("selZero").value,a=$("selL1").value,b=$("selL2").value,c=$("selL3").value,d=$("selL4").value;
+  if(start==="l2") fillLevel("selL2", "— 二级 —",[z,a], b);
+  if(start==="l3") fillLevel("selL3", "— 三级 —",[z,a,b], c);
+  if(start==="l4") fillLevelL4(d);
+  refreshSelL5(z,a,b,c,d);
+}
+function branchMembers(z,l1,l2,l3,l4){
+  const pre=z+l1+l2+l3+l4;
+  const a=EXISTING.filter(e=>e.erp.startsWith(pre));
+  // 台账(log)里的同分支码也计入成员，否则 EXISTING 为空时（当前部署）单条新建会漏算已记录的流水
+  const b=(Array.isArray(log)?log:[]).filter(o=>String(o.erp_code||"").startsWith(pre))
+          .map(o=>({erp:o.erp_code,drawing:o.drawing,name:o.name,guige:o.spec,spec:o.spec,mat:o.mat,l5:String(o.erp_code).slice(9,13)}));
+  return a.concat(b);
+}
+function maxL5(mem){ let m=0; mem.forEach(e=>{ const n=parseInt(e.l5,10); if(n>m)m=n; }); return m; }
+function getPathNames(z,l1,l2,l3,l4,l5){
+  const parts=[];
+  if(z) parts.push(nodeName([z]));
+  if(l1) parts.push(nodeName([z,l1]));
+  if(l2) parts.push(nodeName([z,l1,l2]));
+  if(l3) parts.push(nodeName([z,l1,l2,l3]));
+  if(l4) parts.push(nodeName([z,l1,l2,l3,l4]));
+  if(l5) parts.push(nodeName([z,l1,l2,l3,l4,l5]));
+  return parts.length?parts.join(" / "):"?";
+}
+
+// ============ 生成建议（含分支复用核查） ============
+let lastSuggest=null;
+$("btnSuggest").onclick=()=>{
+  const z=$("selZero").value, l1=$("selL1").value, l2=$("selL2").value, l3=$("selL3").value, l4=$("selL4").value;
+  const name=$("inName").value.trim(), spec=$("inSpec").value.trim(), mat=$("inMat").value.trim();
+  const draw=$("inDraw").value.trim();
+  const area=$("suggestArea");
+  if(!z||!l1||!l2||!l3||!l4){ area.innerHTML='<div class="warnbox">请先选齐 零级 / 一级 / 二级 / 三级 / 四级（五级可留空走自动流水，也可手动指定）。</div>'; return; }
+  const miss=[];
+  if(!name) miss.push("品名");
+  if(!mat) miss.push("材质牌号");
+  if(miss.length){ area.innerHTML=`<div class="warnbox">${miss.join("、")}为必填，缺其一无法判定一物一码。</div>`; return; }
+  // 该分支此前没有启用这个来源时补建节点（四级=全局共用枚举，选了就算启用）
+  const autoNew=ensureL4Node(l1,l2,l3,l4);
+  const pre=z+l1+l2+l3+l4;
+  const mem=branchMembers(z,l1,l2,l3,l4);
+  const base=maxL5(mem);
+  // 五级：默认自动流水；若 selL5 选了具体码则沿用，选"手动指定"则读 inL5manual
+  let l5, l5Source;
+  const l5sel=$("selL5").value;
+  if(l5sel && l5sel!=="__manual__"){ l5=l5sel; l5Source="沿用已选"; }
+  else if(l5sel==="__manual__"){
+    const m=$("inL5manual").value.trim();
+    if(!/^\d{4}$/.test(m)){ area.innerHTML='<div class="warnbox">手动指定五级须填 4 位数字（如 0007），或清空"手动指定"走自动流水。</div>'; return; }
+    l5=m; l5Source="手动指定";
+  } else { l5=(base===0?CFG.l5seed:base+1).toString().padStart(4,"0"); l5Source="自动流水"; }
+  const keyIn=norm(name)+"|"+norm(spec)+"|"+norm(mat);
+  // 匹配优先级：① 图号（唯一且最精确）→ ② 品名+规格+材质
+  // 2026-10-10 定的新口径：**填了图号就不再退化到「品名+规格+材质」**。
+  // 理由：图号不同即不同件。图号在本分支查不到 = 这个图号还没入过库 = 新物料；
+  // 若继续按品名+规格+材质比，会把两个不同图号的零件并成同一个 ERP 码（实测 5115914 / 5115916 侧板就被合成了一码）。
+  let autoReuse=null, drawHits=[], drawMissed=false;
+  if(draw){
+    drawHits=mem.filter(e=>norm(e.drawing)===norm(draw));
+    if(drawHits.length===1) autoReuse=drawHits[0];
+    else if(drawHits.length>1){                       // 同一图号在本分支有多条（规格不同），再用 品名+规格+材质 收敛
+      autoReuse=drawHits.find(e=>norm(e.name)+"|"+norm(e.guige)+"|"+norm(mat)===keyIn)||drawHits[0];
+    }else drawMissed=true;                            // 图号在本分支无命中 → 视作新物料
+  }
+  if(!autoReuse && !drawMissed) mem.forEach(e=>{ const k=norm(e.name)+"|"+norm(e.guige)+"|"+norm(mat); if(k===keyIn) autoReuse=e; });
+  lastSuggest={z,l1,l2,l3,l4,l5,l5Source,draw,name,spec,mat,pre,mem,base,autoReuse,keyIn,drawHits};
+  const path=getPathNames(z,l1,l2,l3,l4);
+  let html=`<div class="analysis" style="margin-top:6px">
+    ${autoNew?`<div class="muted" style="margin-bottom:4px">本三级分支此前未启用「${l4} ${nodeName([z,l1,l2,l3,l4])}」，已在「⑥ 分类管理」中补建该来源。</div>`:""}
+    <div><b>分支前缀</b>：${pre}（零级 ${z} + ${l1} + ${l2} + ${l3} + 四级 ${l4}）</div>
+    <div><b>差异维度</b>：${nodeDiff([z,l1,l2,l3])||"—"}</div>
+    <div><b>本分支现存</b>：${mem.length} 条 · 最大流水 ${mem.length?base:0} · 五级取 <b>${l5}</b>（${l5Source}） · 建议码 <b>${pre}${l5}</b></div>
+  </div>`;
+  if(autoReuse){
+    html+=`<div class="warnbox" style="margin-top:6px">已自动匹配到完全一致物料，建议 <b>复用</b>：${esc(autoReuse.erp)}（${esc(autoReuse.name)} / ${esc(autoReuse.guige||"—")} · 图号 ${esc(autoReuse.drawing||"—")}）</div>`;
+  }else{
+    html+=`<div class="note" style="margin-top:6px">未自动匹配到完全一致物料。请从下方下拉菜单人工核对并选择：选「复用」则沿用该码，选「新建」则按建议码创建。</div>`;
+  }
+  if(draw && drawHits.length>1)
+    html+=`<div class="note" style="margin-top:6px;color:var(--warn)">图号「${esc(draw)}」在本分支有 ${drawHits.length} 条（规格不同），已按「品名+规格+材质」收敛到 ${esc(autoReuse.erp)}，<b>请在下方下拉里人工核对后再确认</b>。</div>`;
+  else if(drawMissed)
+    html+=`<div class="note" style="margin-top:6px">所填图号「${esc(draw)}」在本分支 ${mem.length} 条现存记录中未出现 → <b>按新物料处理</b>（图号不同即不同件，不再按「品名+规格+材质」合并成一个码）。</div>`;
+  let opts="";
+  if(autoReuse) opts+=`<option value="${autoReuse.erp}">✔ 复用（已自动匹配 ${autoReuse.erp}）</option>`;
+  opts+=`<option value="__new__">▶ 新建（${pre}${l5}）</option>`;
+  mem.forEach(e=>{ opts+=`<option value="${esc(e.erp)}">复用 ${esc(e.erp)} · ${esc(e.name)} · ${esc(e.guige||"—")} · 图号 ${esc(e.drawing||"—")}</option>`; });
+  html+=`<div class="row" style="margin-top:10px;align-items:flex-end">
+    <div style="flex:3;min-width:260px"><label>匹配建议（下拉选择：新建 或 复用某现存码）</label><select id="selAction">${opts}</select></div>
+    <div style="flex:0"><label>&nbsp;</label><button id="btnConfirm">确认</button></div>
+  </div>`;
+  if(mem.length===0) html+=`<div class="muted" style="margin-top:6px">本分支暂无现存编码，下拉仅含新建项。</div>`;
+  area.innerHTML=html;
+  $("btnConfirm").onclick=confirmAction;
+};
+
+function emit(z,l1,l2,l3,l4,l5,action,reason,missing,drawing){
+  const erp=z+l1+l2+l3+l4+l5;
+  const path=getPathNames(z,l1,l2,l3,l4,l5);
+  const breakdown={zero:z,level1:l1,level2:l2,level3:l3,level4:l4,level5:l5};
+  const checks=[
+    ["① 13位纯数字", erp.length===13 && /^\d{13}$/.test(erp)],
+    ["② 各级映射合法", breakdown.level1.length===2&&breakdown.level2.length===2&&breakdown.level3.length===2&&breakdown.level4.length===1&&breakdown.level5.length===4],
+    ["③ 流水连续", true],
+    ["④ 新建/复用依据明确", reason.length>0]
+  ];
+  $("resultPanel").style.display="block";
+  const navRes=document.querySelector('.nav-item[data-panel="resultPanel"]');
+  if(navRes) navRes.classList.remove("dim");
+  showPanel("resultPanel",true);
+  $("codeBig").textContent=erp;
+  $("actionTag").innerHTML=`<span class="tag ${action==='新建'?'new':'reuse'}">${action}</span> <span class="muted">${path}</span>`;
+  const fourQ=
+    `<div><b>① 命中分支 / 前缀</b>：${path}；前缀 ${z+l1+l2+l3+l4}</div>`+
+    `<div><b>② 差异维度比对</b>：${nodeDiff([z,l1,l2,l3])||"—"}；与同分支现存物料逐维核对</div>`+
+    `<div><b>③ 新建/复用证据</b>：${reason}</div>`+
+    `<div><b>④ 五级流水与连续性</b>：取值 ${l5}（同分支内独立计数，新建=最大+1 / 复用=沿用既有）</div>`;
+  $("analysisBox").innerHTML=fourQ;
+  const out={erp_code:erp,drawing:drawing||"",level_breakdown:breakdown,category_path:path,action,action_reason:reason,
+             missing_attrs:missing||[],self_check:checks.map((c,i)=>`${i+1}. ${c[0]} ${c[1]?"✓":"✗"}`)};
+  $("jsonBox").textContent=JSON.stringify(out,null,2);
+  $("selfCheck").innerHTML=checks.map(c=>`<li class="${c[1]?'pass':''}">${c[0]} ${c[1]?'✓':'✗'}</li>`).join("");
+  return out;
+}
+function confirmAction(){
+  const v=$("selAction").value;
+  if(!v) return;
+  if(v==="__new__") confirmNew();
+  else confirmReuse(v);
+}
+function confirmNew(){
+  const s=lastSuggest;
+  const reason=s.draw
+    ? `差异维度[${nodeDiff([s.z,s.l1,s.l2,s.l3])||"—"}]下，本分支内图号「${s.draw}」及其品名+规格+材质均无完全一致物料，五级按自动流水取 ${s.l5}`
+    : `差异维度[${nodeDiff([s.z,s.l1,s.l2,s.l3])||"—"}]下，本分支无完全一致物料（品名+规格+材质），五级按自动流水取 ${s.l5}`;
+  const erp=emit(s.z,s.l1,s.l2,s.l3,s.l4,s.l5,"新建",reason,[],s.draw);
+  $("resultPanel").dataset.last=JSON.stringify({...erp, name:s.name, spec:s.spec, mat:s.mat, drawing:s.draw});
+}
+function confirmReuse(erpCode){
+  const s=lastSuggest;
+  // 复用码可能来自源表(EXISTING)或台账(log)——下拉现已同时列出两者
+  let e=EXISTING.find(x=>x.erp===erpCode);
+  if(!e){
+    const lo=(Array.isArray(log)?log:[]).find(o=>o.erp_code===erpCode);
+    if(lo){
+      const c=lo.erp_code;
+      e={erp:c,drawing:lo.drawing,name:lo.name,guige:lo.spec,spec:lo.spec,mat:lo.mat,l5:c.slice(9,13),
+         zero:c.slice(0,2),level1:c.slice(2,4),level2:c.slice(4,6),level3:c.slice(6,8),level4:c.slice(8,9)};
+    }
+  }
+  if(!e){ logMsg(`未找到编码 ${erpCode}，无法复用`); return; }
+  const byDraw=s.draw && norm(e.drawing)===norm(s.draw);
+  const erp=emit(e.zero,e.l1,e.l2,e.l3,e.l4,e.l5,"复用",
+    `同分支(前缀 ${e.zero+e.l1+e.l2+e.l3+e.l4})内已存在完全一致物料 ${e.name} / ${e.guige||"—"}（图号 ${e.drawing||"—"}）${byDraw?"，与所填图号一致":""}，沿用既有编码`,[],s.draw);
+  $("resultPanel").dataset.last=JSON.stringify({...erp, name:s.name, spec:s.spec, mat:s.mat, drawing:s.draw});
+}
+
+// ============ 台账（③ 本机持久化） ============
+const LOG_KEY="erp_log_v5";
+function loadLog(){
+  try{ const s=localStorage.getItem(LOG_KEY); const a=s?JSON.parse(s):[]; return Array.isArray(a)?a:[]; }catch(e){ return []; }
+}
+function saveLog(){ saveLogLocal(); if(DB.enabled && DB.user) DB.upsertLedger(log); }
+let log=loadLog();
+function logMsg(t){
+  const el=$("logMsg"); if(!el) return;
+  el.textContent=t||"";
+  if(t) setTimeout(()=>{ if(el.textContent===t) el.textContent=""; },2800);
+}
+const pad2=n=>String(n).padStart(2,"0");
+function nowStamp(){ const d=new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; }
+function fileStamp(){ const d=new Date();
+  return `${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}`; }
+
+// 「记录到台账（③）」只在「① 生成编码」产出过结果（resultPanel.dataset.last）时才可用；
+// 批量导入走的是另一条链路——批量预览区里的「写入台账（N 行）」。
+// 【修复】旧实现在无结果时直接 `return`，点了完全没反应、也没有任何提示，看着像按钮坏了。
+//   现在：无结果 → 按钮置灰（title 说明原因）+ 点击时弹出明确指引。
+function syncRecordBtn(){
+  const b=$("btnRecord"); if(!b) return;
+  const has=!!($("resultPanel")&&$("resultPanel").dataset.last);
+  b.disabled=!has;
+  b.title=has ? "把当前这条编码写入③台账"
+              : "需先在「① 生成编码」生成并确认一条编码；批量导入请用批量预览区的「写入台账」";
+}
+$("btnRecord").onclick=()=>{
+  const raw=$("resultPanel").dataset.last;
+  if(!raw){
+    syncRecordBtn();
+    alert("还没有可记录的编码。\n\n· 单条出码：先到「① 生成编码」选好分类，生成并确认一条编码；\n"
+        + "· 批量导入：请改用批量预览区里的「写入台账（N 行）」按钮。");
+    showPanel("pan1",true);
+    return;
+  }
+  const o=JSON.parse(raw);
+  const hit=log.findIndex(x=>x.erp_code===o.erp_code);
+  if(hit>=0){                                   // 去重：同一 13 位码只留一条
+    logMsg(`${o.erp_code} 已在台账第 ${hit+1} 行，未重复记录`);
+    showPanel("pan3",true);
+    const tr=$("logTable").querySelector(`tbody tr[data-i="${hit}"]`);
+    if(tr){ tr.classList.add("flash"); if(tr.scrollIntoView) tr.scrollIntoView({block:"center",behavior:"smooth"});
+            setTimeout(()=>tr.classList.remove("flash"),1800); }
+    return;
+  }
+  log.push({...o, record_time:nowStamp()});
+  saveLog(); renderLog();
+  logMsg(`已记录：${o.erp_code}（第 ${log.length} 行）`);
+  showPanel("pan3",true);
+};
+function renderLog(){
+  const tb=$("logTable").querySelector("tbody");
+  const cnt=$("logCount");
+  if(cnt){ cnt.innerHTML=`共 <b>${log.length}</b> 条`; cnt.className="pill"+(log.length?" ok":""); }
+  if(!log.length){
+    tb.innerHTML=`<tr><td colspan="11" class="muted" style="text-align:center;padding:18px">暂无记录 —— 单条出码：在「② 结果与自检」点「记录到台账（③ · 仅单条）」；批量导入：在「① 生成编码」批量预览区点「写入台账（N 行）」。</td></tr>`;
+    return;
+  }
+  tb.innerHTML=log.map((o,i)=>`<tr data-i="${i}"><td>${i+1}</td><td class="muted">${esc(o.record_time||"—")}</td>
+    <td class="erp">${esc(o.erp_code)}</td><td>${esc(o.drawing||"—")}</td><td>${esc(o.category_path)}</td>
+    <td><span class="tag ${o.action==='新建'?'new':'reuse'}">${esc(o.action)}</span></td>
+    <td>${esc(o.name)}</td><td>${esc(o.spec)}</td><td>${esc(o.mat)}</td><td>${esc(o.action_reason)}</td>
+    <td class="log-act"><button class="log-del" data-del="${i}">删除</button></td></tr>`).join("");
+}
+$("logTable").addEventListener("click",e=>{
+  const b=e.target.closest("button[data-del]"); if(!b) return;
+  const i=+b.dataset.del, o=log[i]; if(!o) return;
+  if(!confirm(`从台账移除 ${o.erp_code}（${o.name||"—"} / ${o.category_path}）？`)) return;
+  log.splice(i,1); saveLog(); renderLog(); if(DB.enabled&&DB.user) DB.deleteLedger(o.erp_code); logMsg(`已移除 ${o.erp_code}`);
+});
+$("btnClearLog").onclick=()=>{
+  if(!log.length){ logMsg("台账本来就是空的"); return; }
+  if(!confirm(`清空全部 ${log.length} 条台账？\n建议先点「导出 JSON / CSV」归档，此操作不可撤销。`)) return;
+  log=[]; saveLog(); renderLog(); if(DB.enabled&&DB.user) DB.deleteAllLedger(); logMsg("台账已清空");
+};
+$("btnExportJson").onclick=()=>{
+  if(!log.length){ logMsg("台账为空，无可导出内容"); return; }
+  download(`erp编码台账_${fileStamp()}.json`,JSON.stringify(log,null,2),"application/json");
+  logMsg(`已导出 ${log.length} 条 JSON`);
+};
+$("btnExportCsv").onclick=()=>{
+  if(!log.length){ logMsg("台账为空，无可导出内容"); return; }
+  const head=["record_time","erp_code","drawing","category_path","action","name","spec","mat","action_reason"];
+  const rows=log.map(o=>head.map(h=>`"${String(o[h]==null?"":o[h]).replace(/"/g,'""')}"`).join(","));
+  download(`erp编码台账_${fileStamp()}.csv`,"\ufeff"+head.join(",")+"\n"+rows.join("\n"),"text/csv");
+  logMsg(`已导出 ${log.length} 条 CSV`);
+};
+// 多标签页同步：别处增删后本页自动跟随
+window.addEventListener("storage",e=>{ if(e.key===LOG_KEY){ log=loadLog(); renderLog(); renderEx(); } });
+renderLog();
+function download(name,content,type){ const b=new Blob([content],{type}); const a=document.createElement("a");
+  a.href=URL.createObjectURL(b); a.download=name; a.click(); URL.revokeObjectURL(a.href); }
+
+// ============ ①批量编码：CSV → 逐行判定 → 预览 → 写入台账 ============
+// 每行都跑一遍和单条一样的判定（图号优先 → 品名+规格+材质），另外做三件单条做不到的事：
+//  ① 同批重复行（同分支 + 同图号 + 同品名规格材质）收敛到同一条，不发两个号；**图号不同 = 两个物料，各发一号**
+//  ② 新码在同分支内连号递增，起点 = 现存最大流水+1，自动跳过已被占用的号
+//  ③ 台账里记过的码会被认出来给「复用」，重复导同一个文件不会二次发号
+// 真正的流水号在「写入台账」那一刻才分配 —— 所以你在预览里把某行从「复用」改成「新建」，
+// 后面的号会跟着整批重排，既不撞号也不留空洞。预览显示的号码 = 保持默认选择时的最终结果。
+// 2026-10-10：按用户习惯把「每天要填的业务字段」排到前面（图号/品名/规格/材质牌号），分类列放后面。
+// 导入是按**列名**定位的（见 batchAnalyze 里的 idx），所以旧列序的文件照样能导，不需要转格式。
+const BATCH_HEAD=["图号","品名","规格","材质牌号","零级码","零级名称","一级码","一级名称","二级码","二级名称","三级码","三级名称","四级码","五级码"];
+let batchRows=[];
+
+function batchMsg(html,kind){
+  const el=$("batchArea"); if(!el) return;
+  el.innerHTML=`<div class="${kind==="ok"?"analysis":"warnbox"}" style="margin:8px 0">${html}</div>`;
+}
+// 本级定位：优先按码（不足自动补零），没填码时按名称查（要求唯一）
+function batchPick(parentPath,codeRaw,nameRaw,len,label){
+  const cont=childContainerOf(parentPath)||{};
+  const name=String(nameRaw==null?"":nameRaw).trim();
+  let code=String(codeRaw==null?"":codeRaw).trim();
+  if(code){
+    if(code.length<len) code=code.padStart(len,"0");
+    if(code.length!==len) return {err:`${label}码「${code}」应为 ${len} 位数字`};
+    if(!cont[code]) return {err:`${label}码「${code}」分类树里没有，请先在「⑥ 分类管理」建好`};
+    return {code};
+  }
+  if(!name) return {err:`${label}未填码、也未填名称`};
+  const hits=Object.keys(cont).filter(k=>String((cont[k]&&cont[k].name)||cont[k]||"").trim()===name);
+  if(hits.length===1) return {code:hits[0]};
+  if(hits.length===0) return {err:`${label}名称「${name}」分类树里找不到，请改填码`};
+  return {err:`${label}名称「${name}」对应 ${hits.length} 个节点（${hits.join("/")}），请改填码`};
+}
+// 附件模板格式：分类列用「码-名称」合并写法（如 01-富耐连、03-成品、0-自制件）。
+// 拆出码与名称：以数字开头接「- / －」→ 码为数字、名为其后；纯数字 → 仅码；其余 → 仅名。
+function splitCodeName(v){
+  const t=String(v==null?"":v).trim();
+  const m=t.match(/^([0-9]+)\s*[-－]\s*(.*)$/);
+  if(m) return {code:m[1], name:m[2].trim()};
+  if(/^[0-9]+$/.test(t)) return {code:t, name:""};
+  return {code:"", name:t};
+}
+function codeTaken(pre,l5){                     // 13 位码在「现存库 / 台账」里是否已占用
+  const c=pre+l5;
+  if(EXISTING.some(e=>e.erp===c)) return true;
+  return Array.isArray(log)&&log.some(o=>o.erp_code===c);
+}
+function splitErp(c){ return {z:c.slice(0,2),l1:c.slice(2,4),l2:c.slice(4,6),l3:c.slice(6,8),l4:c.slice(8,9),l5:c.slice(9,13)}; }
+
+// 按各行的 pick 分配最终号码（写入前再用一次同样的算法，保证「没手改 = 结果一致」）
+function batchAllocate(list){
+  const next={};
+  list.forEach(rec=>{
+    if(!rec.valid||rec.pick==="skip"){ rec.final=null; return; }
+    const pre=rec.pre;
+    if(rec.pick==="new"){
+      let l5="";
+      if(rec.l5manual){
+        l5=rec.l5manual;
+        if(codeTaken(pre,l5)){ rec.final=null; rec.finalErr=`指定五级 ${pre}${l5} 已被占用`; return; }
+      }else{
+        if(next[pre]===undefined){
+          const mem=branchMembers(rec.z,rec.l1,rec.l2,rec.l3,rec.l4);
+          const base=maxL5(mem);
+          next[pre]=Math.max(base===0?CFG.l5seed:base+1, CFG.l5seed);
+        }
+        do{ l5=String(next[pre]++).padStart(4,"0"); }while(codeTaken(pre,l5)&&next[pre]<=9999);
+      }
+      rec.l5=l5; rec.final=pre+l5; rec.finalErr="";
+      return;
+    }
+    if(String(rec.pick).indexOf("dup:")===0){     // 跟随本批前面某行
+      const refLn=parseInt(String(rec.pick).slice(4),10);
+      const ref=list.find(x=>x.ln===refLn);
+      rec.final=(ref&&ref.final)||null; rec.finalErr=ref&&!ref.final?"所跟随的行未生成编码":"";
+      return;
+    }
+    rec.final=String(rec.pick); rec.finalErr="";
+  });
+}
+
+function batchAnalyze(text){
+  const parsed=parseCSV(text);
+  const rep=fixBrokenRows(parsed);                 // 修复 Excel 断行导致的残行
+  const raw=rep.rows;
+  const rows=raw.filter(r=>r&&r.some(c=>String(c==null?"":c).trim()!==""));
+  if(rows.length<2) return {ok:false,msg:"没有数据行（需含表头 + 至少一行物料）"};
+  const head=rows[0].map(s=>String(s).trim());
+  const idx={}; head.forEach((h,i)=>{ if(h&&!(h in idx)) idx[h]=i; });
+  if(idx["品名"]===undefined||idx["材质牌号"]===undefined)
+    return {ok:false,msg:'缺少「品名」或「材质牌号」列，请用本页「下载批量模板」的表头'};
+  const cell=(r,k)=>{ const i=idx[k]; return i===undefined?"":String(r[i]==null?"":r[i]).trim(); };
+  // 判定格式：附件格式（10 列，零级/一级/…/四级 用「码-名称」合并写法）还是标准格式（14 列，码/名称各一列）
+  const attached = idx["零级码"]===undefined && idx["零级"]!==undefined;
+  const out=[];
+  for(let ri=1;ri<rows.length;ri++){
+    const r=rows[ri], rec={ln:ri+1,errs:[],valid:false};
+    if(r.length>head.length){          // 超列（多于表头）：典型由「未加引号的逗号/换行」造成，溢出列会污染分类码。明确报错而非静默吸收。
+      rec.errs.push(`列数不符：本行 ${r.length} 列，表头 ${head.length} 列。可能由未加引号的逗号/换行造成；请用 Excel「CSV UTF-8（逗号分隔）」重新另存后再导入。`);
+      out.push(rec); continue;
+    }
+    rec.draw=cell(r,"图号"); rec.name=cell(r,"品名"); rec.spec=cell(r,"规格"); rec.mat=cell(r,"材质牌号");
+    rec.l5manual=attached?cell(r,"五级"):cell(r,"五级码");
+    const chain=[
+      {key:"z", pk:"零级码",pn:"零级名称",alias:"零级",len:2,label:"零级",parent:()=>[]},
+      {key:"l1",pk:"一级码",pn:"一级名称",alias:"一级",len:2,label:"一级",parent:()=>[rec.z]},
+      {key:"l2",pk:"二级码",pn:"二级名称",alias:"二级",len:2,label:"二级",parent:()=>[rec.z,rec.l1]},
+      {key:"l3",pk:"三级码",pn:"三级名称",alias:"三级",len:2,label:"三级",parent:()=>[rec.z,rec.l1,rec.l2]},
+      {key:"l4",pk:"四级码",pn:"四级名称",alias:"四级",len:1,label:"四级",parent:()=>[rec.z,rec.l1,rec.l2,rec.l3]}
+    ];
+    for(const c of chain){                       // 上级没定位到就别往下找
+      let codeRaw="", nameRaw="";
+      if(attached){                               // 附件格式：单格「码-名称」拆分
+        const sn=splitCodeName(cell(r,c.alias)); codeRaw=sn.code; nameRaw=sn.name;
+      }else{ codeRaw=cell(r,c.pk); nameRaw=cell(r,c.pn); }
+      const res=batchPick(c.parent(),codeRaw,nameRaw,c.len,c.label);
+      if(res.err){ rec.errs.push(res.err); break; }
+      rec[c.key]=res.code;
+    }
+    if(!rec.name) rec.errs.push("品名必填");
+    if(!rec.mat)  rec.errs.push("材质牌号必填");
+    if(rec.l5manual && !/^\d{4}$/.test(rec.l5manual)) rec.errs.push(`五级码「${rec.l5manual}」须 4 位数字`);
+    if(rec.errs.length){ out.push(rec); continue; }
+    rec.valid=true;
+    rec.pre=rec.z+rec.l1+rec.l2+rec.l3+rec.l4;
+    rec.path=getPathNames(rec.z,rec.l1,rec.l2,rec.l3,rec.l4);
+    rec.keyNS=norm(rec.name)+"|"+norm(rec.spec);                 // 现存库无材质字段，只能比 品名+规格
+    rec.keyFull=rec.keyNS+"|"+norm(rec.mat);
+    rec.keyDraw=norm(rec.draw)+"|"+rec.keyFull;                  // 同批去重专用：图号也进 key，图号不同=不同物料
+    const mem=branchMembers(rec.z,rec.l1,rec.l2,rec.l3,rec.l4);
+    rec.memCount=mem.length;
+    let target=null, src="", drawMissed=false;
+    if(rec.draw){                                                // ① 图号（唯一且最精确）
+      const hits=mem.filter(e=>norm(e.drawing)===norm(rec.draw));
+      if(hits.length===1){ target=hits[0]; src="现存·图号一致"; }
+      else if(hits.length>1){ target=hits.find(e=>norm(e.name)+"|"+norm(e.guige)===rec.keyNS)||hits[0]; src=`现存·图号 ${hits.length} 条按品名+规格收敛`; }
+      else drawMissed=true;                                      // 图号查不到 → 本分支没入过库，不再退化
+    }
+    if(!target && !drawMissed){                                  // ② 品名+规格（仅当未填图号时才比）
+      const e=mem.find(x=>norm(x.name)+"|"+norm(x.guige)===rec.keyNS);
+      if(e){ target=e; src="现存·品名+规格一致"; }
+    }
+    if(!target){                                                 // ③ 台账已记过（防重复导文件二次发号）
+      const lp=(Array.isArray(log)?log:[]).filter(o=>String(o.erp_code||"").startsWith(rec.pre));
+      // 同样遵守「填了图号就只认图号」：图号命中不了就不再按品名+规格+材质归并
+      let o=rec.draw?lp.find(x=>norm(x.drawing)===norm(rec.draw)):null;
+      if(!o && !drawMissed) o=lp.find(x=>norm(x.name)+"|"+norm(x.spec)+"|"+norm(x.mat)===rec.keyFull);
+      if(o){ target={erp:o.erp_code,drawing:o.drawing,name:o.name,guige:o.spec}; src="③台账已登记"; }
+    }
+    if(!target){                                                 // ④ 本批前面已出现过同样的物料
+      const dup=out.find(x=>x.valid&&x.pre===rec.pre&&x.keyDraw===rec.keyDraw);
+      if(dup){ rec.reuseRef=dup.ln; rec.reuseSrc=`本批第 ${dup.ln} 行重复`; rec.pick="dup:"+dup.ln; }
+    }
+    if(target&&typeof target==="object"&&target.erp){ rec.reuseErp=target.erp; rec.reuseSrc=src; rec.pick=target.erp; }
+    if(rec.pick===undefined) rec.pick="new";
+    out.push(rec);
+  }
+  batchRows=out;
+  batchBroken={fixed:rep.fixed,splitOut:rep.splitOut,samples:rep.samples,rawCount:parsed.length};   // 断行修复情况，供预览顶部提示
+  batchAllocate(out);                                            // 先按默认选择算一遍，预览显示的就是这个结果
+  return {ok:true,rows:out,brokenFixed:rep.fixed,splitOut:rep.splitOut,brokenSamples:rep.samples,rawCount:parsed.length};
+}
+let batchBroken={fixed:0,samples:[],rawCount:0,splitOut:0};
+
+function batchRender(){
+  const rows=batchRows;
+  if(!rows.length){ batchMsg("没有读到数据行。",""); return; }
+  const ok=rows.filter(r=>r.valid);
+  const nNew=ok.filter(r=>r.pick==="new").length;
+  const nRe=ok.filter(r=>r.pick!=="new").length;
+  const nBad=rows.length-ok.length;
+  let h=`<div class="log-head">
+    <span class="pill ${rows.length?"ok":""}">共 <b>${rows.length}</b> 行</span>
+    <span class="pill">新建 <b>${nNew}</b></span>
+    <span class="pill">复用 <b>${nRe}</b></span>
+    ${nBad?`<span class="pill" style="background:#fff1f0;color:var(--bad)">无效 <b>${nBad}</b></span>`:""}
+    <span class="muted">预览中的号码 = 保持默认选择后的最终结果；每行可单独改成「新建 / 复用 / 跳过」</span>
+  </div>`;
+  if(batchBroken.fixed>0||batchBroken.splitOut>0){   // 修复提示：让用户知道系统替做了什么
+    h+=`<div class="warnbox" style="margin:0 0 10px">已自动修复 Excel 另存 CSV 造成的行损坏：
+      ${batchBroken.fixed?`合并断行 <b>${batchBroken.fixed}</b> 处；`:''}
+      ${batchBroken.splitOut?`从粘连单元格里拆出 <b>${batchBroken.splitOut}</b> 条记录；`:''}
+      原始物理行 ${batchBroken.rawCount} → 实际记录 <b>${rows.length}</b> 条。
+      若某行内容确实被 Excel 截断，请检查该行「规格」列是否有换行或逗号。</div>`;
+  }else if(batchBroken.rawCount>0 && batchBroken.rawCount!==rows.length+1){
+    h+=`<div class="warnbox" style="margin:0 0 10px">文件共 <b>${batchBroken.rawCount}</b> 个物理行，但只解析出 <b>${rows.length}</b> 条数据行——有单元格内含逗号/换行导致列错位且未能自动合并。
+      请点「导出判定结果(CSV)」查看具体行，或用项目里的 <b>运行诊断.cmd</b> 做结构体检。</div>`;
+  }
+  h+=`<div class="tbl-scroll" style="max-height:420px"><table><thead><tr>
+      <th>行</th><th>判定（可改）</th><th>建议 13 位码</th><th>分类路径</th><th>图号</th><th>品名</th><th>规格</th><th>材质牌号</th><th>依据 / 问题</th>
+    </tr></thead><tbody>`;
+  rows.forEach((r,i)=>{
+    if(!r.valid){
+      h+=`<tr class="batch-err"><td>${r.ln}</td><td colspan="8" style="color:var(--bad)">${esc(r.errs.join("；"))}</td></tr>`;
+      return;
+    }
+    let opts="";
+    if(r.reuseErp) opts+=`<option value="${esc(r.reuseErp)}">复用 ${esc(r.reuseErp)}（${esc(r.reuseSrc)}）</option>`;
+    if(r.reuseRef) opts+=`<option value="dup:${r.reuseRef}">复用（${esc(r.reuseSrc)}，随第 ${r.reuseRef} 行走）</option>`;
+    const newLbl=r.l5?`▶ 新建 ${esc(r.pre+r.l5)}`:"▶ 改为新建（写入时排号）";
+    opts+=`<option value="__new__"${r.pick==="new"?" selected":""}>${newLbl}</option>`;
+    opts+=`<option value="__skip__">— 跳过（不写入台账）</option>`;
+    h+=`<tr><td>${r.ln}</td>
+      <td><select id="bSel_${r.ln}" class="b-sel">${opts}</select></td>
+      <td class="erp">${esc(r.final||"—")}</td>
+      <td>${esc(r.path||"")}</td>
+      <td>${esc(r.draw||"—")}</td>
+      <td>${esc(r.name)}</td><td>${esc(r.spec||"—")}</td><td>${esc(r.mat)}</td>
+      <td class="muted">${esc(r.reuseSrc||(r.pick==="new"?(r.l5manual?"按指定五级":"本分支无完全一致物料，自动流水"):""))}</td></tr>`;
+  });
+  h+=`</tbody></table></div>`;
+  h+=`<div class="btnrow" style="margin-top:10px">
+      <button id="btnBatchWrite">写入台账（${ok.length} 行）</button>
+      <button class="ghost sm" id="btnBatchExport">导出判定结果(CSV)</button>
+      <button class="ghost sm" id="btnBatchCancel">取消</button>
+    </div>
+    <div class="note">写入前请核对「复用」行：自动复用是靠<b>图号</b>或<b>品名+规格+材质</b>比出来的，不是百分百可靠，务必人工确认一遍。<b>填了图号的行只按图号比</b>（图号不同不会被合成一码）；图号留空的行才按品名+规格+材质比。</div>`;
+  $("batchArea").innerHTML=h;
+  $("btnBatchWrite").onclick=batchWrite;
+  $("btnBatchExport").onclick=batchExportPreview;
+  $("btnBatchCancel").onclick=()=>{ batchRows=[]; $("batchArea").innerHTML=""; };
+}
+
+function batchReadPicks(){
+  batchRows.forEach(r=>{
+    const sel=$("bSel_"+r.ln);
+    if(!sel||!r.valid) return;
+    const v=sel.value;
+    if(v==="__skip__") r.pick="skip";
+    else if(v==="__new__") r.pick="new";
+    else if(String(v).indexOf("dup:")===0) r.pick=v;
+    else r.pick=v;                                   // 13 位现存码
+  });
+}
+function batchExportPreview(){
+  const head=["行号","判定","erp_code","category_path","drawing","name","spec","mat","说明"];
+  const rows=batchRows.map(r=>{
+    if(!r.valid) return [`${r.ln}`,"无效","","","",r.name,r.spec,r.mat,r.errs.join("；")];
+    const act=r.pick==="skip"?"跳过":(r.pick==="new"||String(r.pick).indexOf("dup:")===0?"新建":"复用");
+    const note=r.reuseSrc||(r.pick==="new"?(r.l5manual?"指定五级":"自动流水"):"");
+    return [`${r.ln}`,act,r.pick==="skip"?"":(r.final||""),r.path||"",r.draw,r.name,r.spec,r.mat,note];
+  });
+  download(`批量判定_${fileStamp()}.csv`,
+    "\ufeff"+[head.join(",")].concat(rows.map(r=>r.map(c=>`"${String(c==null?"":c).replace(/"/g,'""')}"`).join(","))).join("\r\n"),
+    "text/csv");
+}
+function batchWrite(){
+  batchReadPicks();
+  batchAllocate(batchRows);                          // 按最终选择重排流水
+  let add=0,ovw=0,bad=0; const errs=[];
+  batchRows.forEach(r=>{
+    if(!r.valid||r.pick==="skip") return;
+    if(!r.final){ bad++; if(errs.length<10) errs.push(`第${r.ln}行：${r.finalErr||"未生成编码"}`); return; }
+    const s=splitErp(r.final);
+    let action="新建",reason="";
+    if(r.pick==="new"){ action="新建";
+      reason=`批量导入第${r.ln}行：差异维度[${nodeDiff([r.z,r.l1,r.l2,r.l3])||"—"}]下，本分支无完全一致物料（品名+规格+材质），五级${r.l5manual?"按指定取":"按自动流水取"} ${r.l5}`;
+    }else if(String(r.pick).indexOf("dup:")===0){ action="复用";
+      reason=`批量导入第${r.ln}行：与本批第${String(r.pick).slice(4)}行物料完全一致，沿用其编码`;
+    }else{ action="复用";
+      reason=`批量导入第${r.ln}行：同分支（前缀 ${r.pre}）内已存在完全一致物料（${r.reuseSrc}），沿用既有编码`;
+    }
+    // 覆盖判定：按 ERP 主键或图号匹配已有台账条目，命中则就地更新描述字段（不改动 13 位码），
+    // 未命中才新增。这样「改动后重新导入」会覆盖编码台账与（源表∪台账合并的）现存编码，而不是又添一条。
+    let exIdx=-1;
+    if(r.draw){
+      const d=norm(r.draw);
+      for(let i=0;i<log.length;i++){ if(String(log[i].drawing||"")===d && log[i].erp_code===r.final){ exIdx=i; break; } }
+      if(exIdx<0) for(let i=0;i<log.length;i++){ if(String(log[i].drawing||"")===d){ exIdx=i; break; } }
+    }
+    if(exIdx<0) for(let i=0;i<log.length;i++){ if(log[i].erp_code===r.final){ exIdx=i; break; } }
+    if(exIdx>=0){
+      const o=log[exIdx];
+      o.drawing=r.draw; o.name=r.name; o.spec=r.spec; o.mat=r.mat;
+      o.category_path=r.path; o.action=action; o.action_reason=reason; o.record_time=nowStamp();
+      if(o.__ex) delete o.__ex;                       // 覆盖后旧修订层失效
+      ovw++;
+    }else{
+      const out=emit(s.z,s.l1,s.l2,s.l3,s.l4,s.l5,action,reason,[],r.draw);
+      log.push({...out,name:r.name,spec:r.spec,mat:r.mat,drawing:r.draw});
+      add++;
+    }
+  });
+  saveLog(); renderLog(); renderEx();
+  batchRows=[];
+  const bits=[`已写入台账 <b>${add}</b> 条`];
+  if(ovw) bits.push(`覆盖更新 <b>${ovw}</b> 条`);
+  if(bad) bits.push(`<b style="color:var(--bad)">失败 ${bad} 条</b>`);
+  batchMsg(bits.join(" · ")+(errs.length?"<br>"+esc(errs.join("；")):""),"ok");
+}
+$("btnBatchTpl").onclick=()=>{
+  // 附件模板格式（10 列）：分类列用「码-名称」合并写法，导入按列名识别、两种格式都能导
+  const head=["图号","品名","规格","材质牌号","零级","一级","二级","三级","四级","五级"];
+  const rows=[
+    ["5115845","装配体","XLEJ A65 装配体","ST12","01-富耐连","03-成品","00-无二级细分","00-无三级细分","0-自制件",""],
+    ["5115914","侧板","3mm","SUS304","01-富耐连","03-成品","00-无二级细分","00-无三级细分","1-采购件",""],
+    ["","轴","Ø20×150","45#","01-富耐连","03-成品","04-绝缘类","01-","1-采购件",""]
+  ];
+  download("批量编码CSV模板.csv",csvJoin([head,...rows]),"text/csv");
+  batchMsg("模板已下载：<b>附件格式（10 列，分类列用「码-名称」合并写法，如 01-富耐连 / 0-自制件）</b>。<b>品名、材质牌号必填</b>；零~四级填「码-名称」或只填码都行；五级留空自动流水。<b>填了图号就只按图号判重</b>（图号不同 = 两个物料，会各发一号）。<br>注：旧的 14 列模板（零级码/零级名称…分开写）照样能导，无需转换。","ok");
+};
+$("btnBatchImport").onclick=()=>$("fileBatch").click();
+// 版本标记：改动后请同步更新此串，方便一眼确认浏览器加载的是不是最新页面（防 file:// 缓存）
+const APP_VER="2026-10-11 19:30 · 云端共享";
+if($("verTag")) $("verTag").textContent="v"+APP_VER;
+$("fileBatch").onchange=e=>{
+  const f=e.target.files[0]; e.target.value=""; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    let text="";
+    try{ text=new TextDecoder("utf-8").decode(r.result); }catch(err){ text=String(r.result||""); }
+    if(text.indexOf("\ufffd")>=0){                   // UTF-8 解出乱码 → 退回 GBK（Excel 另存的 ANSI CSV）
+      try{ const g=new TextDecoder("gbk").decode(r.result); if(g.indexOf("\ufffd")<0) text=g; }catch(err){}
+    }
+    let res;
+    try{ res=batchAnalyze(text); }
+    catch(err){ res={ok:false,msg:String((err&&err.message)||err)}; }
+    if(!res.ok) batchMsg(esc(res.msg));
+    else batchRender();
+  };
+  r.readAsArrayBuffer(f);
+};
+
+// ============ 分类规则表（④，随自定义更新） ============
+// v6 平级清单：每级一张独立清单展示（零级=客户，一~四级=共用分类），不再做层级组合展开
+function renderCls(){
+  const bodyEl=$("clsTable").querySelector("tbody");
+  const rows=[];
+  clientKeys().forEach(c=>{
+    const n=CFG.lv.zero[c]||{};
+    rows.push(`<tr><td>${c} ${asc(n.name||"")}</td><td colspan="5" class="muted">（客户代号）</td></tr>`);
+  });
+  [["l1",1],["l2",2],["l3",3],["l4",4]].forEach(([L,col])=>{
+    const d=lvlDict(L);
+    const cell=(v)=>col===1?"<td>"+v+"</td>":col===2?"<td></td><td>"+v+"</td>":col===3?"<td></td><td></td><td>"+v+"</td>":"<td></td><td></td><td></td><td>"+v+"</td>";
+    Object.keys(d).sort().forEach(c=>{
+      const n=d[c];
+      rows.push(`<tr><td class="muted">${L==="l4"?"（全局共用）":""}</td>${cell(c+" "+asc(n.name||""))}<td>${asc(n.diff||"")}</td><td>${asc(n.note||"")}</td></tr>`);
+    });
+  });
+  bodyEl.innerHTML=rows.join("");
+  ensureClsToolbar({big:false});
+}
+// ④工具条：搜索 + 分页（只在大数据模式出现）
+function ensureClsToolbar(st){
+  const tbl=$("clsTable");
+  if(!tbl) return;
+  const host=tbl.parentElement && tbl.parentElement.parentElement;   // .tbl-scroll 的父级 = 面板容器
+  if(!host) return;
+  let bar=document.getElementById("clsToolbar");
+  if(!st.big){
+    if(bar) bar.remove();
+    return;
+  }
+  if(!bar){
+    bar=document.createElement("div");
+    bar.id="clsToolbar";
+    bar.style.cssText="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 8px;font-size:12.5px";
+    host.insertBefore(bar,host.firstChild);
+  }
+  bar.innerHTML=`<input id="clsKw" placeholder="搜索分类名称/码…" value="${esc(st.kw)}"
+      style="flex:1;min-width:160px;max-width:280px;border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12.5px">
+    <span class="muted">命中 <b>${st.poolLen}</b> 条</span>
+    <button class="ghost sm" id="clsPrev" ${st.pg<=1?"disabled":""}>‹ 上一页</button>
+    <span>${st.pg} / ${st.pages}</span>
+    <button class="ghost sm" id="clsNext" ${st.pg>=st.pages?"disabled":""}>下一页 ›</button>`;
+  const kwEl=bar.querySelector("#clsKw");
+  kwEl.oninput=()=>{ renderCls._kw=kwEl.value.trim(); renderCls._page=1; renderCls(); kwEl.focus(); };
+  // 焦点保持：oninput 重渲染后把光标放回末尾
+  setTimeout(()=>{ try{ kwEl.setSelectionRange(kwEl.value.length,kwEl.value.length); }catch(e){} },0);
+  const prev=bar.querySelector("#clsPrev"), next=bar.querySelector("#clsNext");
+  if(prev) prev.onclick=()=>{ renderCls._page=Math.max(1,(renderCls._page||1)-1); renderCls(); };
+  if(next) next.onclick=()=>{ renderCls._page=(renderCls._page||1)+1; renderCls(); };
+}
+function asc(s){ return String(s==null?"":s); }
+
+// ============ 现存编码表（⑤，可复制 / 可修订描述信息） ============
+// 修订层存本机 localStorage，合并进内存 EXISTING —— 不改动 data.js 源文件。
+const EXOV_KEY="erp_exov_v1";
+const EX_FIELD=[["drawing","图号"],["name","品名"],["guige","规格"],["mat","材料牌号"]];  // 可修订字段；13 位码与各级码不可改
+let exOv={}, exEditing=null, exFilter="", exLast=new Set();
+function loadExOv(){
+  try{ const o=JSON.parse(localStorage.getItem(EXOV_KEY)||"{}"); return (o&&typeof o==="object"&&!Array.isArray(o))?o:{}; }
+  catch(e){ return {}; }
+}
+function saveExOv(){ saveExOvLocal(); if(DB.enabled && DB.user) DB.saveConfig("exOv", exOv); }
+function origOf(e){ return e.__orig || {drawing:e.drawing,name:e.name,guige:e.guige}; }
+function applyExOv(){
+  EXISTING.forEach(e=>{
+    const ov=exOv[e.erp];
+    if(ov && Object.keys(ov).length){
+      if(!e.__orig) e.__orig={drawing:e.drawing,name:e.name,guige:e.guige};
+      EX_FIELD.forEach(([f])=>{ if(ov[f]!==undefined) e[f]=ov[f]; });
+    }else if(e.__orig){
+      EX_FIELD.forEach(([f])=>{ e[f]=e.__orig[f]; });
+      delete e.__orig;
+    }
+  });
+}
+function exRestoreAll(){ EXISTING.forEach(e=>{ if(e.__orig){ EX_FIELD.forEach(([f])=>{ e[f]=e.__orig[f]; }); delete e.__orig; } }); }
+function setExMsg(t,warn){ const el=$("exMsg"); if(!el) return; el.textContent=t||""; el.style.color=warn?"var(--warn)":"var(--ok)"; if(t) setTimeout(()=>{ if(el.textContent===t) el.textContent=""; },4000); }
+function copyText(t,btn){
+  const done=ok=>{ if(!btn) return; const old=btn.dataset.txt||btn.textContent; btn.dataset.txt=old; btn.textContent=ok?"已复制 ✓":"复制失败"; btn.classList.toggle("done",!!ok); setTimeout(()=>{ btn.textContent=old; btn.classList.remove("done"); },1200); };
+  const ask=()=>{ try{ return (typeof navigator!=="undefined" && navigator.clipboard && navigator.clipboard.writeText) || null; }catch(e){ return null; } };
+  try{ const p=ask(); if(p){ p(t).then(()=>done(true),()=>done(fallback(t))); return; } }catch(e){}
+  done(fallback(t));
+}
+function fallback(t){
+  try{ const ta=document.createElement("textarea"); ta.value=t; ta.style.position="fixed"; ta.style.opacity="0";
+    document.body.appendChild(ta); ta.select(); const ok=document.execCommand("copy"); document.body.removeChild(ta); return ok; }
+  catch(e){ return false; }
+}
+// 统一总表 = 源表(EXISTING) ∪ 台账(log)；按「图号（非空优先）/ ERP」去重，
+// 保证现存编码每个图号只列一次（一个图号 = 一个物料）。图号相同的多条里保留 record_time 最新一条。
+let exDupList=[];                                 // 被去重合并掉的重复项（keep/drop 两条 erp），供界面告警
+function allCodes(){
+  const out=[]; const byDraw=new Map(); const byErp=new Map(); exDupList=[];
+  const take=(rec)=>{
+    const dk=rec.drawing?norm(rec.drawing):"";
+    if(dk){
+      if(byDraw.has(dk)){ exDupList.push({draw:rec.drawing, keep:byDraw.get(dk).erp, drop:rec.erp}); return; }
+      byDraw.set(dk,rec); out.push(rec); return;
+    }
+    if(byErp.has(rec.erp)) return;                 // 图号空的记录靠 ERP 主键去重（原行为）
+    byErp.set(rec.erp,rec); out.push(rec);
+  };
+  EXISTING.forEach(e=>{
+    take({src:"源表", erp:e.erp, drawing:e.drawing, name:e.name, guige:e.guige, mat:e.mat,
+          zero:e.zero,l1:e.l1,l2:e.l2,l3:e.l3,l4:e.l4,l5:e.l5, ref:e, edited:!!e.__orig});
+  });
+  const arr=(Array.isArray(log)?log:[]).slice()
+    .sort((a,b)=>String(b.record_time||"").localeCompare(String(a.record_time||"")));   // 最新优先
+  arr.forEach(o=>{
+    if(!o||!o.erp_code) return;
+    const s=splitErp(o.erp_code);
+    take({src:"台账", erp:o.erp_code, drawing:o.drawing, name:o.name, guige:o.spec, mat:o.mat,
+          zero:s.z,l1:s.l1,l2:s.l2,l3:s.l3,l4:s.l4,l5:s.l5, ref:o, edited:!!o.__ex});
+  });
+  return out;
+}
+let exAll=[];
+function exSrcTag(src){
+  return src==="源表"
+    ? `<span style="font-size:11px;padding:1px 5px;border-radius:6px;margin-right:6px;background:#e8eefc;color:#2b5fd0">源表</span>`
+    : `<span style="font-size:11px;padding:1px 5px;border-radius:6px;margin-right:6px;background:#eafaf0;color:#1a9e5a">台账</span>`;
+}
+function exRowHTML(e){
+  const edt=!!e.edited;
+  const path=`${e.zero}/${e.l1}/${e.l2}/${e.l3}/${e.l4}/${e.l5}`;
+  if(exEditing===e.erp){
+    let cells="";
+    EX_FIELD.forEach(([f])=>{ cells+=`<td><input class="ex-inp" id="exIn_${e.erp}_${f}" value="${esc(e[f]==null?"":e[f])}"></td>`; });
+    return `<tr class="ex-editing"><td class="erp">${exSrcTag(e.src)}${esc(e.erp)}<button class="cp-btn" data-cp="${esc(e.erp)}">复制</button></td>${cells}
+      <td class="muted">${esc(path)}</td><td class="ex-act">
+        <button class="ex-btn save" data-sv="${esc(e.erp)}">保存</button>
+        <button class="ex-btn" data-cl="1">取消</button></td></tr>`;
+  }
+  return `<tr class="${edt?"ex-ed":""}"><td class="erp">${exSrcTag(e.src)}${esc(e.erp)}<button class="cp-btn" data-cp="${esc(e.erp)}">复制</button>${edt?'<span class="ex-mark" title="已在本机修订过">已修订</span>':""}</td>
+    <td>${esc(e.drawing||"")}</td><td>${esc(e.name||"")}</td><td>${esc(e.guige||"")}</td><td>${esc(e.mat||"")}</td>
+    <td class="muted">${esc(path)}</td><td class="ex-act">
+      <button class="ex-btn" data-ed="${esc(e.erp)}">修订</button>${edt?`<button class="ex-btn bad" data-rs="${esc(e.erp)}">还原</button>`:""}</td></tr>`;
+}
+function renderEx(filter){
+  if(filter!==undefined) exFilter=filter||"";
+  const f=exFilter.toLowerCase();
+  let rows=allCodes().filter(e=>!f || [e.erp,e.drawing,e.name,e.guige,e.mat].some(v=>(v||"").toLowerCase().includes(f)));
+  const nEd=rows.filter(e=>!!e.edited).length;
+  if($("chkOnlyEd") && $("chkOnlyEd").checked) rows=rows.filter(e=>!!e.edited);
+  exAll=rows;
+  const tb=$("exTable").querySelector("tbody");
+  const CAP=2000;                              // 一次性渲染上限（覆盖常规批量导入；更低会悄悄藏掉部分行）
+  tb.innerHTML=rows.slice(0,CAP).map(exRowHTML).join("");
+  if(rows.length>CAP) tb.insertAdjacentHTML("beforeend",`<tr><td colspan="7" class="muted">仅显示前 ${CAP} 条，共 ${rows.length} 条匹配（点「清理重复图号」或缩小搜索范围可查看更多）。</td></tr>`);
+  if(!rows.length) tb.innerHTML=`<tr><td colspan="7" class="muted" style="text-align:center;padding:18px">没有匹配的编码。</td></tr>`;
+  exLast=new Set(rows.map(e=>e.erp));
+  const c=$("exCount");
+  if(c){ let t=`匹配 <b>${rows.length}</b> 条${nEd?` · 已修订 <b>${nEd}</b>`:""}`;
+    if(exDupList.length) t+=` · <span style="color:var(--bad)">合并重复图号 <b>${exDupList.length}</b>（点「清理重复图号」可彻底删除）</span>`;
+    c.innerHTML=t; c.className="pill"+(nEd||exDupList.length?" ok":""); }
+}
+exOv=loadExOv(); applyExOv(); renderEx("");
+$("srchEx").oninput=e=>{ if(exEditing) { exEditing=null; } renderEx(e.target.value); };
+if($("chkOnlyEd")) $("chkOnlyEd").onchange=()=>{ if(exEditing) exEditing=null; renderEx(); };
+$("exTable").addEventListener("click",ev=>{
+  const b=ev.target.closest("button"); if(!b) return;
+  if(b.dataset.cp){ copyText(b.dataset.cp,b); return; }
+  if(b.dataset.ed){ exEditing=b.dataset.ed; setExMsg(""); renderEx(); return; }
+  if(b.dataset.cl){ exEditing=null; renderEx(); return; }
+  if(b.dataset.sv){
+    const erp=b.dataset.sv; const row=exAll.find(r=>r.erp===erp); if(!row) return;
+    const nv={}; EX_FIELD.forEach(([f])=>{ nv[f]=String(($("exIn_"+erp+"_"+f)||{}).value??"").trim(); });
+    if(!nv.name){ setExMsg("品名不能为空，已取消保存。",true); return; }
+    if(row.src==="源表"){
+      const e=row.ref, o=origOf(e), ov={};
+      EX_FIELD.forEach(([f])=>{ if(nv[f]!==String(o[f]==null?"":o[f]).trim()) ov[f]=nv[f]; });
+      const n=Object.keys(ov).length;
+      if(n===0){ delete exOv[erp]; setExMsg(`${erp} 与源数据一致，未产生修订。`); }
+      else exOv[erp]=ov;
+      applyExOv(); saveExOv();
+    }else{
+      const o=row.ref;
+      if(!o.__ex) o.__ex={drawing:o.drawing,name:o.name,spec:o.spec,mat:o.mat};
+      EX_FIELD.forEach(([f])=>{ const tgt=f==="guige"?"spec":f; o[tgt]=nv[f]; });
+      saveLog();
+    }
+    exEditing=null; renderEx();
+    setExMsg(`${erp} 已修订并保存（本机留存，未改源数据）`); return;
+  }
+  if(b.dataset.rs){
+    const erp=b.dataset.rs; const row=exAll.find(r=>r.erp===erp); if(!row) return;
+    if(row.src==="源表"){
+      if(!confirm(`还原 ${erp}（${row.ref.name}）为本源数据？\n本机对该条的修订会被丢弃。`)) return;
+      delete exOv[erp]; applyExOv(); saveExOv();
+    }else{
+      const o=row.ref;
+      if(o.__ex){ ["drawing","name","spec","mat"].forEach(k=>{ o[k]=o.__ex[k]; }); delete o.__ex; saveLog(); }
+    }
+    exEditing=null; renderEx();
+    setExMsg(`${erp} 已还原为原始值。`); return;
+  }
+});
+$("exTable").addEventListener("keydown",ev=>{
+  if(!ev.target.classList || !ev.target.classList.contains("ex-inp")) return;
+  if(ev.key==="Enter"){ ev.preventDefault(); const t=ev.target.id.split("_")[1]; const btn=$("exTable").querySelector(`button[data-sv="${t}"]`); if(btn) btn.click(); }
+  if(ev.key==="Escape"){ ev.preventDefault(); exEditing=null; renderEx(); }
+});
+function buildExCsv(){
+  const head=["erp_code","图号","品名","规格","材料牌号","路径","来源"];
+  const body=allCodes().map(e=>{
+    const path=[e.zero,e.l1,e.l2,e.l3,e.l4,e.l5].map(x=>String(x==null?"":x)).join("");
+    return [e.erp,e.drawing,e.name,e.guige,e.mat,path,e.src]
+      .map(v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`).join(",");
+  });
+  return "\ufeff"+head.join(",")+"\n"+body.join("\n");
+}
+$("btnExportExCsv").onclick=()=>{
+  const rows=allCodes();
+  if(!rows.length){ setExMsg("当前没有现存编码，无法导出。",true); return; }
+  download(`erp现存编码_${fileStamp()}.csv`, buildExCsv(), "text/csv");
+  setExMsg(`已导出 ${rows.length} 条现存编码（源表+台账合并总表，与「导出修订清单」无关）。`);
+};
+// 清理台账里「图号重复」的脏记录：同一图号出现多条时，仅保留 record_time 最新一条，其余删除。
+// 仅在台账侧操作，不动源表 data.js；删除前二次确认，避免误删。
+function cleanDupDraw(){
+  const m=new Map();                       // norm图号 -> 同图号台账记录（含原索引）
+  (Array.isArray(log)?log:[]).forEach((o,i)=>{ if(o&&o.drawing){ const dk=norm(o.drawing); if(!m.has(dk)) m.set(dk,[]); m.get(dk).push({o,i}); } });
+  const drops=[]; let groups=0;
+  m.forEach(arr=>{ if(arr.length<2) return; groups++;
+    arr.sort((a,b)=>String(b.o.record_time||"").localeCompare(String(a.o.record_time||"")));   // 最新保留
+    arr.slice(1).forEach(x=>drops.push(x.i));
+  });
+  if(!drops.length){ setExMsg("台账中没有重复图号，无需清理。",true); return; }
+  if(!confirm(`即将删除 ${drops.length} 条重复图号记录（共 ${groups} 个图号，每组保留 record_time 最新一条）。\n\n确定清理？`)) return;
+  drops.sort((a,b)=>b-a).forEach(i=>log.splice(i,1));          // 从后往前删，避免索引错位
+  saveLog(); renderLog(); renderEx();
+  setExMsg(`已清理 ${drops.length} 条重复图号记录（保留每组最新一条），现存编码现已唯一。`);
+}
+$("btnCleanDup").onclick=cleanDupDraw;
+$("btnExportEdCfg").onclick=()=>{
+  const seedList=EXISTING.filter(e=>!!e.__orig);
+  const logList=(Array.isArray(log)?log:[]).filter(o=>!!o.__ex);
+  if(!seedList.length && !logList.length){ setExMsg("还没有任何修订，无需导出。",true); return; }
+  const head=["erp_code","来源","字段","原值","新值"];
+  const rows=[];
+  seedList.forEach(e=>{ const o=e.__orig; EX_FIELD.forEach(([f,n])=>{ if(String(e[f])!==String(o[f])) rows.push([e.erp,"源表",n,o[f],e[f]].map(v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`).join(",")); }); });
+  logList.forEach(o=>{ EX_FIELD.forEach(([f,n])=>{ const tgt=f==="guige"?"spec":f; if(String(o[tgt])!==String(o.__ex[tgt])) rows.push([o.erp_code,"台账",n,o.__ex[tgt],o[tgt]].map(v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`).join(",")); }); });
+  download(`erp现存编码修订_${fileStamp()}.csv`,"\ufeff"+head.join(",")+"\n"+rows.join("\n"),"text/csv");
+  setExMsg(`已导出 ${seedList.length+logList.length} 条修订（含原值与新值，用于回写源表）。`);
+};
+$("btnRestoreEx").onclick=()=>{
+  const nSeed=EXISTING.filter(e=>!!e.__orig).length;
+  const nLog=(Array.isArray(log)?log:[]).filter(o=>!!o.__ex).length;
+  const n=nSeed+nLog;
+  if(!n){ setExMsg("当前没有修订，全部已是源数据。",true); return; }
+  if(!confirm(`将丢弃本机 ${n} 条修订（源表 ${nSeed} + 台账 ${nLog}），全部恢复为原始值。\n（需要留档请先点「导出修订清单」）\n\n确定继续？`)) return;
+  exOv={}; exEditing=null; exRestoreAll(); saveExOv();
+  (Array.isArray(log)?log:[]).forEach(o=>{ if(o.__ex){ ["drawing","name","spec","mat"].forEach(k=>{ o[k]=o.__ex[k]; }); delete o.__ex; } });
+  saveLog(); renderEx();
+  setExMsg(`已恢复 ${n} 条为原始值。`);
+};
+
+// ============ 重置 ============
+$("btnReset").onclick=()=>{
+  $("selZero").value=""; refreshLevelCascade();
+  $("inName").value=""; $("inSpec").value=""; $("inMat").value=""; $("inDraw").value="";
+  $("suggestArea").innerHTML=""; $("resultPanel").style.display="none";
+};
+
+// ============ 分类管理：六级独立品类表（含五级流水） ============
+// 零~四级可增减/改码/改名；五级每行=某分支下一条流水码，可改名/删除/按自动流水补下一行。
+const LVL_TITLE = { zero:"零级 · 客户代号", l1:"一级 · 物料分类", l2:"二级 · 材料类型", l3:"三级 · 材料分类", l4:"四级 · 来源", l5:"五级 · 流水" };
+function renderNav(){
+  try{
+    $("clsTables").innerHTML = ["zero","l1","l2","l3","l4","l5"].map(lvl=>buildLvlTable(lvl)).join("");
+  }catch(err){
+    console.error("renderNav 渲染异常",err);
+    $("clsTables").innerHTML = `<div class="warnbox">分类表渲染失败：${esc(String(err&&err.message||err))}。请点「从源表重置」恢复，或清除本地缓存后强刷。</div>`;
+  }
+  bindLvlTableEvents();
+  bindL5Pager();
+}
+function buildLvlTable(lvl){
+  const len = LVL_LEN[lvl];
+  const addBtn = `<button class="ghost sm lv-add" data-lvl="${lvl}">＋ 新增${LVL_NAME[lvl]}</button>`;
+  // 零~四级都是「下拉选条目 → 旁边按钮」，无折叠分组；只有五级按分支折叠，保留「展开 / 收起」
+  const ctrl = (lvl==="l5")
+    ? `<button class="ghost sm" id="${lvl}ToggleAll">展开 / 收起</button><span class="lv-note" style="margin:0 4px">默认收起</span>${addBtn}
+       <button class="ghost sm" id="btnL5Clear">清空全部流水</button>
+       <button class="ghost sm" id="btnL5Rebuild">按源表重建</button>`
+    : addBtn;
+  const head = `<div class="lv-head">
+    <span class="lv-title">${LVL_TITLE[lvl]}</span>
+    <span class="lv-note">（${len} 位 · ${
+      lvl==='zero' ? "下拉选客户 · 可改名 / 删除" :
+      lvl==='l1'   ? "独立清单 · 不挂上级 · 可改名 / 删除" :
+      lvl==='l2'   ? "独立清单 · 不挂一级 · 可改名 / 删除" :
+      lvl==='l3'   ? "独立清单 · 不挂二级 · 可改名 / 删除" :
+      lvl==='l4'   ? "全局共用枚举 · 可改名 / 删除" :
+      lvl==='l5'   ? "流水可增减 · 按分支折叠" :
+                     "独立清单 · 可改名 / 删除"
+    }）</span>
+    <div class="l5-ctrl">${ctrl}</div>
+  </div>`;
+  // 零级=下拉选客户；一~四级=下拉直接列出该级全部条目；五级=按分支折叠
+  let body;
+  if(lvl==="zero") body = zeroTableRows();
+  else if(lvl==="l5") body = l5TableRows();
+  else body = lvlFlatRows(lvl);
+  const wrapCls = lvl==="zero" ? "zero-table" : "";
+  return `<div class="lvl-table ${wrapCls}" data-lvl="${lvl}">${head}${body}</div>`;
+}
+
+// 零级 = 客户独立管理：下拉选客户 → 可改名 / 删除（分类共用在下面各级，不挂客户）
+function zeroTableRows(){
+  const zKeys=clientKeys();
+  const sel = zKeys.length===0 ? `<div class="acc-empty">暂无客户。</div>` : `<select id="zSel">${zKeys.map(z=>{
+    const n=lvlDict("zero")[z];
+    return `<option value="${z}">${z} ${esc(n.name||"")}</option>`;
+  }).join("")}</select>`;
+  // 码 / 名称 / 删除 与下拉同一行（放 .sel-parent 内，flex 横排）
+  return `<div class="lvl-with-sel">
+    <div class="sel-parent"><label>选择客户</label>${sel}<div class="zero-row" id="zeroRowBody"></div></div>
+  </div>`;
+}
+
+// 一~四级 = 独立清单：下拉直接列出该级全部条目（与零级同形式），选中谁就操作谁。
+// v6 解耦后每级字典各存一份，条目 label 即「码 名称」；path 仍返回带 CAT_ROOT 的标准路径，
+// 供 renderLvlSelBody / delLvl / renameCode 等旧接口直接使用。
+function flatLvlItems(lvl){
+  const d=lvlDict(lvl);
+  return Object.keys(d).sort().map(c=>{
+    const np=[CAT_ROOT].concat(Array(LVL_ORDER.indexOf(lvl)-1).fill("")).concat([c]);
+    const own=`${c} ${d[c].name||""}`;
+    return {path:np,label:own,own};
+  });
+}
+// 路径 → 可读名称（v6 独立清单：「码 名称」单段；零级/客户为一段）
+function pathLabel(path){
+  if(!path||path.length===0) return "";
+  if(path.length===1) return `${path[0]} ${nodeName(path)}`;
+  const L=LVL_ORDER[path.length-1];
+  return `${path[path.length-1]} ${nodeName(path)}`;
+}
+// ============ 四级（来源）= 全局共用枚举（v6：独立清单，无嵌套） ============
+// 来源本质只有「自制 / 采购」两种，不按三级分类拆分。五级流水按「一+二+三+来源」前缀独立计数。
+function srcEnumItems(){
+  return Object.keys(lvlDict("l4")).sort().map(c=>({code:c,name:lvlDict("l4")[c].name||("来源"+c),count:Object.keys(CFG.lv.l5).filter(fk=>fk.slice(-1)===c).length}));
+}
+// 全树收集某个来源码（v6：单节点，返回空数组即可——改名/删除直接操作独立字典）
+function srcAllPaths(code){
+  return lvlDict("l4")[code] ? [[CAT_ROOT,l4code0(code)]] : [];
+}
+function l4code0(code){ return code; }
+// 全树收集所有三级分类路径（v6：三级已是独立清单，无嵌套）
+function allL3Paths(){
+  return Object.keys(lvlDict("l3")).sort().map(c=>[CAT_ROOT,"","",c]);
+}
+// 全树收集某一级（l1~l4）全部节点码（v6：即该级字典的码列表）
+function collectLvlNodes(lvl){
+  return Object.keys(lvlDict(lvl)).sort();
+}
+// 改名：来源为全局唯一节点，直接改
+function renSrc(code){
+  const it=srcEnumItems().find(x=>x.code===code);
+  if(!it) return;
+  const val=prompt(`修改来源「${code} ${it.name}」的名称：`, it.name||"");
+  if(val===null) return;
+  const nm=val.trim();
+  if(!nm){ alert("名称不能为空"); return; }
+  if(nm===it.name) return;
+  lvlDict("l4")[code].name=nm;
+  saveCFG(); refreshAll();
+  const selEl=document.getElementById("l4Sel");
+  if(selEl){ selEl.value=code; renderLvlSelBody("l4"); }
+}
+// 删除：删除该来源及其名下全部五级流水
+function delSrc(code){
+  const it=srcEnumItems().find(x=>x.code===code);
+  if(!it) return;
+  let l5cnt=0;
+  Object.keys(CFG.lv.l5).forEach(fk=>{ if(fk.slice(-1)===code) l5cnt+=Object.keys(CFG.lv.l5[fk]).length; });
+  const msg=`确认删除来源「${code} ${it.name}」？\n\n`+
+    `来源为全局共用项，将同时删除其名下共 ${l5cnt} 条五级流水。\n`+
+    `删除后对应物料编码也会一并移除。`;
+  if(!confirm(msg)) return;
+  delete lvlDict("l4")[code];
+  Object.keys(CFG.lv.l5).forEach(fk=>{ if(fk.slice(-1)===code) delete CFG.lv.l5[fk]; });
+  saveCFG(); refreshAll();
+}
+// 新增：直接写入独立清单（保证全局一致）
+function addSrc(){
+  const exist=srcEnumItems();
+  const code=prompt(`新来源码（${LVL_LEN["l4"]} 位数字）：\n现有来源：${exist.map(x=>x.code+" "+x.name).join("、")||"（无）"}`,"");
+  if(code===null) return;
+  const c=code.trim();
+  if(!/^\d+$/.test(c)||c.length!==LVL_LEN["l4"]){ alert(`来源码须 ${LVL_LEN["l4"]} 位数字`); return; }
+  if(exist.some(x=>x.code===c)){ alert("该来源码已存在"); return; }
+  const name=prompt("新来源名称：","");
+  if(name===null) return;
+  const nm=name.trim();
+  if(!nm){ alert("名称不能为空"); return; }
+  lvlDict("l4")[c]={name:nm,diff:"",note:""};
+  saveCFG(); refreshAll();
+  const selEl=document.getElementById("l4Sel");
+  if(selEl){ selEl.value=c; renderLvlSelBody("l4"); }
+}
+
+function lvlFlatRows(lvl){
+  // 共用分类独立于客户，无需检查客户是否存在
+  if(lvl==="l4"){
+    // 四级（来源）= 全局共用枚举，按码去重，只列 0 自制件 / 1 采购件
+    const items=srcEnumItems();
+    const sel = items.length===0
+      ? `<span class="muted">（暂无来源，点「＋ 新增来源」添加）</span>`
+      : `<select id="l4Sel">${items.map(it=>`<option value="${it.code}">${esc(it.code+" "+it.name)}</option>`).join("")}</select>`;
+    return `<div class="lvl-with-sel" data-lvl="l4">
+      <div class="sel-parent"><label>选择${LVL_NAME["l4"]}</label>${sel}<div class="lvl-row" id="l4RowBody"></div></div>
+    </div>`;
+  }
+  const items=flatLvlItems(lvl);
+  const sel = items.length===0
+    ? `<span class="muted">（暂无${LVL_NAME[lvl]}，点「＋ 新增${LVL_NAME[lvl]}」添加）</span>`
+    : `<select id="${lvl}Sel">${items.map(it=>`<option value="${it.path.join("/")}">${esc(it.label)}</option>`).join("")}</select>`;
+  return `<div class="lvl-with-sel" data-lvl="${lvl}">
+    <div class="sel-parent"><label>选择${LVL_NAME[lvl]}</label>${sel}<div class="lvl-row" id="${lvl}RowBody"></div></div>
+  </div>`;
+}
+
+// 根据下拉选中值，渲染「零~四级行内按钮」到对应的 RowBody 容器
+function renderLvlSelBody(lvl){
+  const sel = document.getElementById(lvl==="zero"?"zSel":lvl+"Sel");
+  const bodyEl = document.getElementById(lvl==="zero"?"zeroRowBody":lvl+"RowBody");
+  if(!bodyEl) return;
+  if(lvl==="zero"){
+    // 零级：从 DOM 直接读 zSel 当前值
+    const z = (sel && sel.value) ? sel.value : "";
+    if(!z || !lvlDict("zero")[z]){
+      bodyEl.innerHTML = `<span class="muted">（暂无客户可选）</span>`;
+      return;
+    }
+    // 与下拉同行：只留「改名」「删除」两个按钮（码/名称已在下拉里显示，不再重复输入框）
+    bodyEl.innerHTML = `<button class="ghost sm lv-ren" data-lvl="zero" data-code="${z}" title="修改该客户名称">改名</button>
+      <button class="ghost sm bad lv-del" data-lvl="zero" data-code="${z}" title="删除该客户">删除</button>`;
+    return;
+  }
+  // 四级（来源）= 全局共用枚举：下拉 value 是来源码（"0"/"1"），选中整个来源
+  if(lvl==="l4"){
+    const code=(sel && sel.value) ? sel.value : "";
+    const it=srcEnumItems().find(x=>x.code===code);
+    if(!it){
+      bodyEl.innerHTML = `<span class="muted">（暂无来源可选）</span>`;
+      return;
+    }
+    bodyEl.innerHTML = `<button class="ghost sm lv-ren" data-lvl="l4" data-code="${it.code}" title="修改来源名称">改名</button>
+      <button class="ghost sm bad lv-del" data-lvl="l4" data-code="${it.code}" title="删除：全局共用，将删除名下 ${it.count} 组五级流水">删除</button>
+      <span class="muted">全局共用 · ${it.count} 组流水</span>`;
+    return;
+  }
+  // 一~三级：下拉 value 就是该条目的完整路径（"#/03/01"），选中谁就操作谁
+  const v = (sel && sel.value) ? sel.value : "";
+  if(!v){
+    bodyEl.innerHTML = `<span class="muted">（暂无可选）</span>`;
+    return;
+  }
+  const path = v.split("/");
+  if(!nodeExists(path)){
+    bodyEl.innerHTML = `<span class="muted">（所选条目已不存在）</span>`;
+    return;
+  }
+  // 与下拉同行：只留「改名」「删除」两个按钮（码/名称已在下拉里显示，不再重复输入框）
+  const lbl=pathLabel(path);
+  bodyEl.innerHTML = `<button class="ghost sm lv-ren" data-lvl="${lvl}" data-path="${v}" title="改名：${esc(lbl)}">改名</button>
+    <button class="ghost sm bad lv-del" data-lvl="${lvl}" data-path="${v}" title="删除：${esc(lbl)}">删除</button>`;
+}
+
+// 五级流水表：按「一+二+三+四」7 位前缀分组（v6 平级清单），默认收起（点组头展开），每行=该分支下一条五级码
+// 大数据防卡：分支超过 200 个 → 顶部搜索 + 分页（每页 100 组），一次只渲染一页
+function branchLabel(fk){                     // "0307000" → "03 成品 / 07 其它 / 00 无三级细分 / 0 自制件"
+  const seg=[[fk.slice(0,2),"l1"],[fk.slice(2,4),"l2"],[fk.slice(4,6),"l3"],[fk.slice(6,7),"l4"]];
+  return seg.map(([c,L])=>`${c} ${(lvlDict(L)[c]&&lvlDict(L)[c].name)||c}`).join(" / ");
+}
+function l5TableRows(){
+  // 分支 = l5 字典的全部 7 位前缀（也补上「上级都有但暂无流水」的分支？——不补，无流水的分支本就没有分组键）
+  const all=Object.keys(CFG.lv.l5).sort();
+  if(all.length===0) return `<div class="acc-empty">暂无五级流水分支。在「① 生成编码」完成一次新建后，这里会自动出现对应分支。</div>`;
+  // 分页状态挂在函数属性上（刷新时保留所在页）
+  l5TableRows._branches=all;
+  const per=100;
+  const big = all.length>200;
+  let branches=all, pg=1, pages=1;
+  if(big){
+    const kw=(l5TableRows._kw||"").toLowerCase();
+    branches = kw ? all.filter(fk=>{
+      const txt=branchLabel(fk);
+      return txt.toLowerCase().includes(kw);
+    }) : all;
+    pg=Math.min(l5TableRows._page||1, Math.max(1,Math.ceil(branches.length/per)));
+    pages=Math.max(1,Math.ceil(branches.length/per));
+    l5TableRows._page=pg;
+    branches=branches.slice((pg-1)*per, pg*per);
+  }
+  const groups = branches.map(fk=>{
+    const pTxt=branchLabel(fk);
+    const cont=CFG.lv.l5[fk]||{};
+    const l5codes=Object.keys(cont).sort();
+    // 伪路径 [CAT_ROOT,l1,l2,l3,l4]（长度=5→四级），data-path 供 delLvl/renameCode 走 childContainerOf
+    const p4=[CAT_ROOT,fk.slice(0,2),fk.slice(2,4),fk.slice(4,6),fk.slice(6,7)];
+    let rows="";
+    if(l5codes.length===0){
+      const nextL5=String(CFG.l5seed).padStart(4,"0");
+      const path5=p4.concat(nextL5);
+      rows+=`<tr data-path="${path5.join('/')}" data-new="${nextL5}"><td class="ctx" style="display:none">${pTxt}</td>
+        <td><input class="in-code" data-lvl="l5" data-path="${path5.join('/')}" value="${nextL5}" maxlength="4"></td>
+        <td><input class="in-name" data-lvl="l5" data-path="${path5.join('/')}" value="" placeholder="流水 ${nextL5}"></td>
+        <td><input class="in-note" data-lvl="l5" data-path="${path5.join('/')}" value="" placeholder="说明（选填）"></td>
+        <td class="row-act"><button class="ghost sm bad lv-del" data-lvl="l5" data-path="${path5.join('/')}">删除</button></td>
+      </tr>`;
+    } else {
+      l5codes.forEach(c5=>{
+        const path5=p4.concat(c5);
+        const n=cont[c5];
+        rows+=`<tr data-path="${path5.join('/')}"><td class="ctx" style="display:none">${pTxt}</td>
+          <td><input class="in-code" data-lvl="l5" data-path="${path5.join('/')}" value="${c5}" maxlength="4"></td>
+          <td><input class="in-name" data-lvl="l5" data-path="${path5.join('/')}" value="${esc(n.name||"")}" placeholder="名称"></td>
+          <td><input class="in-note" data-lvl="l5" data-path="${path5.join('/')}" value="${esc(n.note||"")}" placeholder="说明"></td>
+          <td class="row-act"><button class="ghost sm bad lv-del" data-lvl="l5" data-path="${path5.join('/')}">删除</button></td>
+        </tr>`;
+      });
+    }
+    const cnt=l5codes.length;
+    return `<div class="l5-group" data-branch="${p4.join('/')}">
+      <button type="button" data-branch="${p4.join('/')}"><span class="chev">▶</span><span class="ctx">${pTxt}</span><span class="cnt">${cnt} 条流水</span></button>
+      <div class="l5-body"><table class="lv-tbl"><thead><tr><th style="width:56px">码(4)</th><th>名称</th><th>说明</th><th style="width:52px">操作</th></tr></thead><tbody>${rows}</tbody></table></div>
+    </div>`;
+  }).join("");
+  const pager = big ? `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 8px;font-size:12.5px">
+      <input id="l5Kw" placeholder="搜索分支（码或名称）…" value="${esc(l5TableRows._kw||"")}"
+        style="flex:1;min-width:160px;max-width:280px;border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12.5px">
+      <span class="muted">命中 <b>${branches.length?l5TableRows._hitLen:""}</b></span>
+      <button class="ghost sm" id="l5Prev" ${pg<=1?"disabled":""}>‹ 上一页</button>
+      <span>${pg} / ${pages}</span>
+      <button class="ghost sm" id="l5Next" ${pg>=pages?"disabled":""}>下一页 ›</button>
+    </div>` : "";
+  const html=`${pager}<div class="l5-groups" id="l5Groups">${groups}</div>`;
+  if(big){
+    // 事件绑定放到渲染后（renderNav 会整体 innerHTML，这里用事件委托挂 document 一次性即可，
+    // 但简单起见：渲染完由 bindLvlTableEvents 后调用方 bindL5Pager()——见 renderNav）
+    l5TableRows._needBind=true;
+    l5TableRows._hitLen=undefined;
+  }
+  return html;
+}
+// 五级分页/搜索控件绑定（renderNav 渲染后调用）
+function bindL5Pager(){
+  const kwEl=document.getElementById("l5Kw");
+  if(kwEl){
+    kwEl.oninput=()=>{ l5TableRows._kw=kwEl.value.trim(); l5TableRows._page=1;
+      const cont=document.getElementById("l5Groups"); if(cont&&cont.parentElement){ renderL5Only(); } };
+    const prev=document.getElementById("l5Prev"), next=document.getElementById("l5Next");
+    if(prev) prev.onclick=()=>{ l5TableRows._page=Math.max(1,(l5TableRows._page||1)-1); renderL5Only(); };
+    if(next) next.onclick=()=>{ l5TableRows._page=(l5TableRows._page||1)+1; renderL5Only(); };
+  }
+}
+// 只重渲染五级区块（不动其它五张表，保住滚动位置与输入焦点）
+function renderL5Only(){
+  const host=document.getElementById("l5Groups");
+  if(!host) { renderNav(); return; }
+  const kwEl=document.getElementById("l5Kw");
+  // 记住焦点与光标
+  const hadFocus = document.activeElement===kwEl;
+  const pos = hadFocus ? kwEl.selectionStart : null;
+  // l5-groups 的父容器里还有 pager，重建整个区块
+  const wrap=host.parentElement;
+  const html=l5TableRows();
+  wrap.innerHTML=html;
+  bindLvlTableEvents();
+  bindL5Pager();
+  const kw2=document.getElementById("l5Kw");
+  if(hadFocus && kw2){ try{ kw2.focus(); kw2.setSelectionRange(pos,pos); }catch(e){} }
+}
+function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+// 新增一行（v6：一~四级均为独立清单，直接写入对应字典，无需挂载点）
+function newLvl(lvl, code, name, mount){
+  const errs=[];
+  if(!/^\d+$/.test(code)) errs.push("编码须为数字");
+  else if(code.length!==LVL_LEN[lvl]) errs.push(`${LVL_NAME[lvl]}须 ${LVL_LEN[lvl]} 位数字`);
+  if(!name) errs.push("名称必填");
+  if(errs.length){ alert(errs.join("；")); return; }
+  if(lvl==="zero"){
+    if(lvlDict("zero")[code]){ alert("该客户码已存在"); return; }
+    lvlDict("zero")[code]={name};
+    saveCFG(); refreshAll(); return;
+  }
+  const cont=lvlDict(lvl);
+  if(cont[code]){ alert(`${LVL_NAME[lvl]}码「${code}」已存在`); return; }
+  cont[code]={name,diff:"",note:""};
+  saveCFG(); refreshAll();
+}
+// 删除（v6：各级独立；删除二级/三级不再连带其它层级，只删五级流水里引用该码的分支）
+function delLvl(lvl, path){
+  let msg;
+  if(lvl==="zero"){
+    // 保护：至少保留一个客户，否则生成面板无客户可选
+    if(clientKeys().length<=1){ alert("至少需保留一个客户，无法删除最后一个。"); return; }
+    msg=`确认删除客户 ${path[0]} ${(lvlDict("zero")[path[0]]||{}).name||""}？（物料分类为全局共用，不受影响）`;
+  }
+  else { msg=`确认删除 ${LVL_NAME[lvl]}「${(nodeByPath(path)||{}).name||""}」？`+
+    (lvl==="l4"?"\n其名下五级流水将一并删除。":"\n引用该码的五级流水分支将一并删除。"); }
+  if(!confirm(msg)) return;
+  const code = path[path.length-1];
+  if(lvl==="zero"){
+    delete lvlDict("zero")[code];
+  } else {
+    delete lvlDict(lvl)[code];
+    // 同步清理五级流水：删除某级后，含该码的分支已无意义
+    const pos=lvl==="l1"?0:(lvl==="l2"?2:(lvl==="l3"?4:6));
+    Object.keys(CFG.lv.l5).forEach(fk=>{
+      const hit=(lvl==="l4") ? fk.slice(6)===code : fk.substr(pos,2)===code;
+      if(hit) delete CFG.lv.l5[fk];
+    });
+  }
+  saveCFG(); refreshAll();
+}
+// 改码（v6：独立清单内改码；同步迁移五级流水分组键）
+function renameCode(lvl, path, newCode){
+  const oldCode = path[path.length-1];
+  if(newCode===oldCode) return;
+  if(!/^\d+$/.test(newCode) || newCode.length!==LVL_LEN[lvl]){ alert(`${LVL_NAME[lvl]}码须 ${LVL_LEN[lvl]} 位数字`); return; }
+  const cont = lvlDict(lvl);
+  if(cont[newCode]){ alert("新码已存在"); return; }
+  cont[newCode] = cont[oldCode];
+  delete cont[oldCode];
+  // 同步迁移五级流水分组键里的该段
+  const pos=lvl==="l1"?0:(lvl==="l2"?2:(lvl==="l3"?4:6));
+  Object.keys(CFG.lv.l5).forEach(fk=>{
+    const seg=(lvl==="l4") ? fk.slice(6) : fk.substr(pos,2);
+    const segOk=(lvl==="l4") ? seg===oldCode : seg===oldCode;
+    if(segOk){
+      const nk = (lvl==="l4") ? fk.slice(0,6)+newCode : fk.slice(0,pos)+newCode+fk.slice(pos+2);
+      CFG.lv.l5[nk]=CFG.lv.l5[fk];
+      delete CFG.lv.l5[fk];
+    }
+  });
+  saveCFG(); refreshAll();
+}
+// 改名 / 差异 / 说明（就地改，不级联）
+function patchNode(path, field, value){
+  const n = nodeByPath(path);
+  if(n) n[field] = value;
+  saveCFG();
+}
+// 事件绑定（委托）
+function bindLvlTableEvents(){
+  const t=$("clsTables");
+  t.onchange=null; t.onclick=null;
+  t.addEventListener("click",e=>{
+    const addBtn=e.target.closest(".lv-add");
+    if(addBtn){
+      const lvl=addBtn.dataset.lvl;
+      if(lvl==="l5"){
+        addL5Auto();
+        return;
+      }
+      if(lvl==="l4"){ addSrc(); return; }   // 来源=全局共用，走独立流程
+      const code=prompt(`${LVL_NAME[lvl]}新码（${LVL_LEN[lvl]} 位数字）：`,"");
+      if(code===null) return;
+      const name=prompt(`${LVL_NAME[lvl]}名称：`,"");
+      if(name===null) return;
+      // v6：一~四级均为独立清单，无需挂载点
+      newLvl(lvl, code.trim(), name.trim(), null);
+      return;
+    }
+    const delBtn=e.target.closest(".lv-del");
+    if(delBtn){
+      const lvl=delBtn.dataset.lvl;
+      if(lvl==="zero") delLvl("zero",[delBtn.dataset.code]);
+      else if(lvl==="l4" && delBtn.dataset.code) delSrc(delBtn.dataset.code);   // 来源=全局删除
+      else delLvl(lvl, delBtn.dataset.path.split("/"));
+      return;
+    }
+    // 「改名」按钮（零~四级通用）：下拉选中谁就改谁（弹窗输入新名称）
+    const renBtn=e.target.closest(".lv-ren");
+    if(renBtn){
+      const lvl=renBtn.dataset.lvl;
+      if(lvl==="l4" && renBtn.dataset.code){ renSrc(renBtn.dataset.code); return; }   // 来源=全局改名
+      let n=null, selId="", selVal="";
+      if(lvl==="zero"){
+        const code=renBtn.dataset.code;
+        n=lvlDict("zero")[code]; selId="zSel"; selVal=code;
+      } else {
+        const pStr=renBtn.dataset.path;
+        const path=pStr.split("/");
+        n=nodeExists(path)?nodeByPath(path):null;
+        selId=lvl+"Sel"; selVal=pStr;
+      }
+      if(!n) return;
+      const ctxLabel = lvl==="zero"
+        ? `客户 ${selVal}`
+        : `${LVL_NAME[lvl]}「${pathLabel(selVal.split("/"))}」`;
+      const val=prompt(`修改${ctxLabel}的名称：`, n.name||"");
+      if(val===null) return;
+      const nm=val.trim();
+      if(!nm){ alert("名称不能为空"); return; }
+      if(nm===n.name) return;
+      n.name=nm;
+      saveCFG(); refreshAll();
+      // refreshAll 会重建下拉并回到第一项，这里选回刚改名的条目，避免"跳走"
+      const selEl=document.getElementById(selId);
+      if(selEl){ selEl.value=selVal; renderLvlSelBody(lvl); }
+      return;
+    }
+    // 五级表分组折叠切换（点组头展开/收起）
+    const grpHead=e.target.closest(".l5-group>button");
+    if(grpHead){
+      const grp=grpHead.parentElement;
+      grp.classList.toggle("open");
+      return;
+    }
+    // 单按钮切换「展开 / 收起」（仅五级表保留折叠组）
+    const toggleBtn=e.target.closest("[id$='ToggleAll']");
+    if(toggleBtn){
+      const lvl=toggleBtn.id.replace(/ToggleAll$/,"");
+      const g=$(lvl==="zero"?"zeroGroups":lvl+"Groups");
+      if(g){
+        const groups=[].slice.call(g.querySelectorAll(".l5-group"));
+        const openAll=groups.length>0 && !groups.some(x=>!x.classList.contains("open"));
+        groups.forEach(x=>x.classList.toggle("open",!openAll));
+        toggleBtn.textContent=openAll?"展开 / 收起":"展开 / 收起";
+      }
+      return;
+    }
+    // 清空全部五级流水（连同 7 位分组的分支键）
+    if(e.target.id==="btnL5Clear"){
+      const n=Object.keys(CFG.lv.l5).reduce((m,fk)=>m+Object.keys(CFG.lv.l5[fk]).length,0);
+      if(n===0){ alert("五级流水已经是空的"); return; }
+      if(!confirm(`确认清空全部五级流水？\n\n共 ${Object.keys(CFG.lv.l5).length} 个分支、${n} 条流水，删除后不可恢复。\n（各级分类清单不受影响；之后可点「按源表重建」恢复源表流水）`)) return;
+      CFG.lv.l5={};
+      saveCFG(); refreshAll();
+      return;
+    }
+    // 按源表重建：从 EXISTING 重新生成分支与流水（自定义的流水名/说明会被源表默认值覆盖同名码）
+    if(e.target.id==="btnL5Rebuild"){
+      let cnt=0, grp=0;
+      EXISTING.forEach(e2=>{
+        const fk=e2.l1+e2.l2+e2.l3+e2.l4;
+        if(!CFG.lv.l5[fk]){ CFG.lv.l5[fk]={}; grp++; }
+        if(!CFG.lv.l5[fk][e2.l5]){ CFG.lv.l5[fk][e2.l5]={name:"流水"+e2.l5,note:""}; cnt++; }
+      });
+      if(cnt===0 && grp===0){ alert("源表流水已全部在列，无需重建"); return; }
+      if(!confirm(`按源表重建五级流水？\n\n将补入 ${grp} 个分支、${cnt} 条源表流水（已存在的同名码保留你改过的名称/说明）。\n确定？`)) return;
+      saveCFG(); refreshAll();
+      return;
+    }
+  });
+  t.addEventListener("change",e=>{
+    const inp=e.target;
+    // 上级选择器下拉（零~四级）：切换时重新渲染子项行
+    // 注意：<select> 上没有 data-lvl，必须按 id 推导层级，否则 renderLvlSelBody(undefined) 会静默 return
+    const selId=inp.id||"";
+    if(selId==="zSel"||/^l[1-4]Sel$/.test(selId)){
+      const lv = selId==="zSel" ? "zero" : selId.slice(0,2);   // zSel→zero, l1Sel→l1 …
+      if(selId==="zSel"){
+        // 零级切换：重建一~四级下拉选项 + 子项行
+        rebuildLowerLvlSelectors();
+      }
+      renderLvlSelBody(lv);
+      return;
+    }
+    const lvl=inp.dataset.lvl;
+    if(inp.classList.contains("in-code")){
+      const code=inp.value.trim();
+      if(lvl==="zero"){
+        if(inp.dataset.code && code!==inp.dataset.code) renameCode("zero",[inp.dataset.code],code);
+      } else {
+        const p=inp.dataset.path.split("/");
+        const exists=nodeExists(p);
+        if(code!==p[p.length-1]){
+          if(exists) renameCode(lvl,p,code);
+          else newLvl(lvl,code,inp.value.trim(),p.slice(0,p.length-1));
+        } else if(!exists && code){
+          // 五级行内新增：写到 7 位前缀分组
+          if(lvl==="l5"){
+            const fk=p.slice(1,5).join("");
+            const g=CFG.lv.l5[fk]||(CFG.lv.l5[fk]={});
+            if(!g[code]) g[code]={name:"流水"+code,note:""};
+            saveCFG(); refreshAll();
+          }
+        }
+      }
+    } else if(inp.classList.contains("in-name")){
+      if(lvl==="zero") patchNode([inp.dataset.code],"name",inp.value.trim());
+      else patchNode(inp.dataset.path.split("/"),"name",inp.value.trim());
+    } else if(inp.classList.contains("in-note")){
+      if(lvl==="zero") patchNode([inp.dataset.code],"note",inp.value.trim());
+      else patchNode(inp.dataset.path.split("/"),"note",inp.value.trim());
+    }
+  });
+}
+// 零级切换时，重建一~四级下拉选项列表（共用分类，与客户无关）+ 刷新子项行
+function rebuildLowerLvlSelectors(){
+  // 一~四级是共用分类，与客户无关；零级切换只需刷新各行内按钮，无需重建 options
+  ["l1","l2","l3","l4"].forEach(renderLvlSelBody);
+}
+// 新增一~四级：v6 各级独立清单，不再需要挂载点；保留空实现防旧调用报错
+function getSelParentPath(lvl){ return null; }
+function pickMountForLvl(lvl){ return null; }
+// 五级表「＋新增」= 选一个分支（7 位前缀），按自动流水补下一条
+function addL5Auto(){
+  const branches=Object.keys(CFG.lv.l5).sort();
+  if(branches.length===0){ alert("暂无五级流水分支，无法补五级流水"); return; }
+  if(branches.length===1){ doAddL5(branches[0]); return; }
+  let choice="";
+  const list=branches.map((fk,i)=>`${i+1}. ${branchLabel(fk)}`).join("\n");
+  choice=prompt(`补到哪个分支？\n${list}\n输入序号：`,"");
+  if(choice===null) return;
+  const idx=parseInt(choice,10);
+  if(isNaN(idx)||idx<1||idx>branches.length){ alert("序号无效"); return; }
+  doAddL5(branches[idx-1]);
+}
+function doAddL5(branchOrFk){
+  // 兼容两种入参：7 位前缀字符串（内部调用）或 伪路径数组 [CAT_ROOT,l1,l2,l3,l4]（旧测试/旧调用）
+  const fk = Array.isArray(branchOrFk) ? branchOrFk.slice(1).join("") : branchOrFk;
+  const g=CFG.lv.l5[fk]||(CFG.lv.l5[fk]={});
+  const codes=Object.keys(g);
+  const max=codes.reduce((m,c)=>Math.max(m,parseInt(c,10)||0),0);
+  const next=(max===0?CFG.l5seed:max+1).toString().padStart(4,"0");
+  g[next]={name:"流水"+next,note:""};
+  saveCFG(); refreshAll();
+  alert(`已在「${branchLabel(fk)}」下补五级 ${next}`);
+}
+
+// ============ 弹窗：节点编辑（保留，供 quick-add 使用） ============
+let modalState={mode:'add',level:'l1',path:[]};
+function openModal(mode,level,path){
+  modalState={mode,level,path};
+  $("modalTitle").textContent=(mode==='add'?'添加':'编辑')+LVL_NAME[level];
+  $("mExtra").style.display="block";
+  if(mode==='add'){
+    $("mCode").value=""; $("mCode").disabled=false;
+    $("mName").value=""; $("mDiff").value=""; $("mNote").value="";
+  } else {
+    const n=nodeByPath(path);
+    $("mCode").value=path[path.length-1]; $("mCode").disabled=true;
+    $("mName").value=n.name||"";
+    $("mDiff").value=n.diff||"";
+    $("mNote").value=n.note||"";
+  }
+  $("mCode").placeholder = level==='l4' ? "如 0 / 1" : "如 01";
+  hideModalErr(); $("modal").style.display="flex"; setTimeout(()=>$("mName").focus(),50);
+}
+function closeModal(){ $("modal").style.display="none"; }
+function showModalErr(msg){ const e=$("modalErr"); e.textContent=msg; e.style.display="block"; }
+function hideModalErr(){ $("modalErr").style.display="none"; }
+function addNode(level, parentPath, code, name, diff, note){
+  const parent=childContainerOf(parentPath);
+  parent[code]={ name, diff:diff||"", note:note||"", children:{} };
+}
+function saveModal(){
+  const {mode,level,path}=modalState;
+  const code=$("mCode").value.trim(), name=$("mName").value.trim();
+  const diff=$("mDiff").value.trim(), note=$("mNote").value.trim();
+  const errs=[];
+  if(!/^\d+$/.test(code)) errs.push("编码须为数字");
+  else if(code.length!==LVL_LEN[level]) errs.push(`编码须 ${LVL_LEN[level]} 位`);
+  if(!name) errs.push("名称必填");
+  if(mode==='add'){
+    const cont=childContainerOf(path);
+    if(cont[code]) errs.push("同级编码已存在");
+  }
+  if(errs.length){ showModalErr(errs.join("；")); return; }
+  if(mode==='add'){ addNode(level, path, code, name, diff, note); }
+  else { const n=nodeByPath(path); n.name=name; n.diff=diff; n.note=note; }
+  closeModal(); saveCFG(); refreshAll();
+}
+$("mSave").onclick=saveModal;
+$("mCancel").onclick=closeModal;
+$("modal").addEventListener("click",e=>{ if(e.target.id==="modal") closeModal(); });
+
+// ============ ⑥ 分类管理：CSV 导入 / 导出（零~四级） ============
+// 宽表：一行一个分类节点，同行带上完整上级链，便于 Excel 打开即可读
+const CSV_HEAD=["层级","零级码","零级名称","一级码","一级名称","二级码","二级名称","三级码","三级名称","四级码","四级名称","差异维度","说明"];
+// 各级「码 / 名称」在 CSV 里的列下标（名称紧跟其后）
+const CSV_CIDX={zero:1,l1:3,l2:5,l3:7,l4:9};
+function csvCell(v){
+  const s=String(v==null?"":v);
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+}
+function csvJoin(rows){ return "\ufeff"+rows.map(r=>r.map(csvCell).join(",")).join("\r\n"); }
+// RFC4180 简化解析：支持引号包裹、转义双引号、CRLF
+// 【容错关键】引号只有在「字段起始位置」才当作 CSV 引号；字段中间出现的裸引号一律按普通数据字符处理。
+//   反例（真实踩坑）：规格里写 ISO 08B 1/2" 滑动离合器 —— 那个 1/2" 是英寸符号，不是引号。
+//   若不加此判据，解析器会从这里一路吞到下一个引号，把中间两百多条记录全塞进同一个单元格。
+//   「字段起始位置」= 文本开头 / 刚遇到逗号 / 刚遇到换行（前导空格仍算起始，兼容 " x" 写法）。
+function parseCSV(text){
+  const t=String(text||"").replace(/^\ufeff/,"");
+  const rows=[]; let row=[],cur="",q=false,fs=true;      // fs = 当前是否位于字段起始位置
+  for(let i=0;i<t.length;i++){
+    const ch=t[i];
+    if(q){
+      if(ch==='"'){ if(t[i+1]==='"'){ cur+='"'; i++; } else { q=false; fs=false; } }
+      else cur+=ch;
+      continue;
+    }
+    if(ch==='"'){
+      if(fs){ q=true; fs=false; }        // 字段开头 → 进入引号模式（支持内嵌逗号/换行）
+      else cur+=ch;                      // 字段中间 → 就是个普通的双引号字符
+      continue;
+    }
+    if(ch===","){ row.push(cur); cur=""; fs=true; continue; }
+    if(ch==="\r"){ continue; }           // 跳过 CR，交给 \n 断行
+    if(ch==="\n"){ row.push(cur); rows.push(row); row=[]; cur=""; fs=true; continue; }
+    cur+=ch;
+    if(ch!==" "&&ch!=="\t") fs=false;    // 前导空白不算"已开始写内容"
+  }
+  row.push(cur); rows.push(row);
+  return rows.filter(r=>r.some(c=>String(c).trim()!==""));
+}
+// ============ 断行修复（仅保留安全的「合并」，删除脆弱的「粘连拆分」）============
+// 旧版 fixBrokenRows 含一套「把单元格内换行炸成多条记录」的启发式，凭列数猜测把
+//   合法多行字段/正常数据撕碎（曾把 250+ 条记录误炸成 254 个碎片，报出虚假「零级未填」）。
+// 现已删除该逻辑：parseCSV 已支持 RFC4180 引号包裹（含内嵌换行/逗号），Excel「CSV UTF-8」
+//   导出的文件可被正确解析，无需再猜。畸形文件改为在 batchAnalyze 里明确报错，而非静默撕碎。
+// 仅保留形态①：一条记录被物理行拆成两半（相邻两行都不足表头列数）→ 拼接回下一行。
+function fixBrokenRows(rows){
+  if(!Array.isArray(rows)||rows.length<2) return {rows,fixed:0,splitOut:0,samples:[]};
+  const head=rows[0].length;
+  const out=[rows[0]]; let fixed=0; const samples=[];
+  const push=m=>{ if(samples.length<6) samples.push(m); };
+  // 仅形态①：相邻两行都不足表头列数 → 拼接回下一行（处理 Excel 断行）。
+  // 这是唯一低风险、可确定的修复；其它畸形（超列 / 单元格内粘连）一律不再猜测，
+  // 交由 batchAnalyze 在行级明确报错，避免把正常数据静默撕碎。
+  for(let i=1;i<rows.length;i++){
+    let cur=rows[i].slice(); let guard=0;
+    while(cur.length<head && i+1<rows.length && guard++<3){
+      if(rows[i+1].length>=head) break;        // 下一条已完整 → 不是被截断
+      const next=rows[i+1];
+      cur=cur.slice(0,-1).concat([String(cur[cur.length-1]||"")+" "+String(next[0]||"").trim()]).concat(next.slice(1));
+      i++; fixed++;
+      push("合并断行："+cur.slice(0,3).map(x=>String(x).trim()).join(" / "));
+    }
+    out.push(cur);
+  }
+  return {rows:out,fixed,splitOut:0,samples};
+}
+const LVL_ALIAS={zero:["零级","0","zero","客户","level0","lv0"],l1:["一级","1","l1","level1"],
+                 l2:["二级","2","l2","level2"],l3:["三级","3","l3","level3"],l4:["四级","4","l4","level4"]};
+function parseLvlCell(s){
+  const t=String(s||"").trim().toLowerCase();
+  for(const k in LVL_ALIAS){ if(LVL_ALIAS[k].includes(t)) return k; }
+  return null;
+}
+// 导出：零级(客户) + 一~四级 各一张独立清单（v6 解耦语义，一行=一个分类节点）
+function cfgCsvRows(){
+  const rows=[];
+  clientKeys().forEach(c=>{
+    const n=lvlDict("zero")[c]||{};
+    const r=Array(13).fill(""); r[0]=LVL_NAME.zero; r[1]=c; r[2]=n.name||""; rows.push(r);
+  });
+  ["l1","l2","l3","l4"].forEach(L=>{
+    const d=lvlDict(L), ci=CSV_CIDX[L];
+    Object.keys(d).sort().forEach(c=>{
+      const r=Array(13).fill("");
+      r[0]=LVL_NAME[L]; r[ci]=c; r[ci+1]=d[c].name||"";
+      if(L==="l3"){ r[11]=d[c].diff||""; r[12]=d[c].note||""; }
+      rows.push(r);
+    });
+  });
+  return rows;
+}
+$("btnExportCsvCfg").onclick=()=>{
+  const rows=cfgCsvRows();
+  const nz=rows.filter(r=>r[0]===LVL_NAME.zero).length;
+  download(`erp分类_${fileStamp()}.csv`,csvJoin([CSV_HEAD,...rows]),"text/csv");
+  csvMsg(`已导出 ${rows.length} 行（零级 ${nz} · 一级~四级 ${rows.length-nz}）。可用 Excel 编辑后「导入分类(CSV)」写回。`,"ok");
+};
+$("btnTplCsvCfg").onclick=()=>{
+  const rows=[
+    ["零级","01","富耐连","","","","","","","","","",""],
+    ["一级","","","03","成品","","","","","","","",""],
+    ["二级","","","","","01","绝缘类","","","","","",""],
+    ["三级","","","","","","","00","通用","","","头部形状 × 型号 × 表面处理",""],
+    ["四级","","","","","","","","","0","自制件","",""],
+    ["四级","","","","","","","","","1","采购件","",""]
+  ];
+  download("分类管理CSV模板.csv",csvJoin([CSV_HEAD,...rows]),"text/csv");
+  csvMsg("模板已下载：表头 + 每种层级各一行示例。改完保存后点「导入分类(CSV)」即可。","ok");
+};
+function csvMsg(html,kind){
+  const el=$("csvMsg"); if(!el) return;
+  el.innerHTML=`<div class="${kind==="ok"?"analysis":"warnbox"}" style="margin:0 0 10px">${html}</div>`;
+}
+// 导入（v6 解耦语义）：每级一张独立清单。二/三级行**不再**挂到上级组合下——
+// 只按本行的「码/名称」写入该级字典。上级列留空或填了都不影响本级写入。
+// 已存在则更新名称/差异维度/说明，不存在则新建；可选同步删除未列出的。
+function csvImportApply(text,prune){
+  const rows=parseCSV(text);
+  if(rows.length<2) return {ok:false,msg:"没有数据行（需含表头 + 至少一行分类）"};
+  const head=rows[0].map(s=>String(s).trim());
+  const idx={}; head.forEach((h,i)=>{ if(h && !(h in idx)) idx[h]=i; });
+  if(idx["层级"]===undefined) return {ok:false,msg:'缺少「层级」列，请用本页「下载 CSV 模板」的表头'};
+  const CIDX={},NIDX={};
+  LVL_ORDER.slice(0,5).forEach(L=>{ CIDX[L]=idx[LVL_NAME[L]+"码"]; NIDX[L]=idx[LVL_NAME[L]+"名称"]; });
+  if(CIDX.zero===undefined) return {ok:false,msg:'缺少「零级码」列（零级行以外可留空，但该列必须在）'};
+  const get=(r,i)=> i===undefined?"":String(r[i]==null?"":r[i]).trim();
+  const st={add:0,upd:0,skip:0,errs:[],uni:[]};
+  const seen=new Set();          // 见过的 key：@客户码 / L:码
+  const bad=(ln,t)=>{ st.skip++; if(st.errs.length<20) st.errs.push(`第${ln}行：${t}`); };
+  // 名称裁决（同一码在不同行出现多个名称时，取「与现状不同的那个」= 你改过的值，其次取出现最多的）
+  const votes=new Map();         // key -> Map(名称 -> 次数)
+  const voteAt=(key,nm)=>{ if(!nm) return; if(!votes.has(key)) votes.set(key,new Map());
+    const m=votes.get(key); m.set(nm,(m.get(nm)||0)+1); };
+
+  // ---------- 阶段①：逐行投票 ----------
+  for(let ri=1;ri<rows.length;ri++){
+    const r=rows[ri]; const ln=ri+1;
+    const lvRaw=get(r,idx["层级"]); if(!lvRaw) continue;
+    const lv=parseLvlCell(lvRaw);
+    if(!lv){ bad(ln,`无法识别的层级「${lvRaw}」（应填 零级/一级/二级/三级/四级）`); continue; }
+    const c=get(r,CIDX[lv]), nm=get(r,NIDX[lv]);
+    if(!c){ bad(ln,`${LVL_NAME[lv]}码为空`); continue; }
+    if(!/^\d+$/.test(c)||c.length!==LVL_LEN[lv]){ bad(ln,`${LVL_NAME[lv]}码「${c}」须 ${LVL_LEN[lv]} 位数字`); continue; }
+    if(lv==="zero"){ seen.add("@"+c); voteAt("@"+c,nm); }
+    else { const key=lv+":"+c; seen.add(key); voteAt(key,nm); }
+  }
+  const decided=new Map();
+  const decide=(key)=>{
+    if(decided.has(key)) return decided.get(key);
+    const m=votes.get(key);
+    if(!m||m.size===0){ decided.set(key,null); return null; }
+    if(m.size===1){ const only=m.keys().next().value; decided.set(key,only); return only; }
+    const cur=key.charAt(0)==="@" ? ((lvlDict("zero")[key.slice(1)]||{}).name)
+                                  : ((lvlDict(key.split(":")[0])[key.split(":")[1]]||{}).name);
+    const all=[...m.entries()].sort((a,b)=>b[1]-a[1]);
+    const changed=all.filter(([nm])=>nm!==cur);
+    const use=(changed.length?changed[0]:all[0])[0];
+    st.uni.push(`${key.replace(/^[Ll]|^@/,"")}：${[...m.keys()].join(" / ")} → 取「${use}」`);
+    decided.set(key,use);
+    return use;
+  };
+
+  // ---------- 阶段②：统一写入 ----------
+  for(let ri=1;ri<rows.length;ri++){
+    const r=rows[ri]; const ln=ri+1;
+    const lvRaw=get(r,idx["层级"]); if(!lvRaw) continue;
+    const lv=parseLvlCell(lvRaw); if(!lv) continue;
+    const c=get(r,CIDX[lv]); if(!c) continue;
+    if(!/^\d+$/.test(c)||c.length!==LVL_LEN[lv]) continue;
+    if(lv==="zero"){
+      let n=lvlDict("zero")[c];
+      if(!n){ n=lvlDict("zero")[c]={name:decide("@"+c)||("客户"+c)}; st.add++; }
+      else { const nm=decide("@"+c); if(nm&&nm!==n.name){ n.name=nm; st.upd++; } }
+      continue;
+    }
+    const cont=lvlDict(lv), key=lv+":"+c;
+    let n=cont[c];
+    if(!n){ n=cont[c]={name:decide(key)||("分支"+c),diff:"",note:""}; st.add++; }
+    else { const nm=decide(key); if(nm&&nm!==n.name){ n.name=nm; st.upd++; } }
+    if(lv==="l3"){
+      const d=get(r,idx["差异维度"]), no=get(r,idx["说明"]);
+      if(d&&d!==n.diff){ n.diff=d; st.upd++; }
+      if(no&&no!==n.note){ n.note=no; st.upd++; }
+    }
+  }
+
+  // ---------- 可选：同步删除 CSV 未列出的零~四级 ----------
+  let del=0;
+  if(prune){
+    clientKeys().forEach(c=>{
+      if(seen.has("@"+c)) return;
+      if(clientKeys().length<=1){ if(st.errs.length<20) st.errs.push(`最后一个客户 ${c} 不允许删除，已保留`); return; }
+      delete lvlDict("zero")[c]; del++;
+    });
+    ["l1","l2","l3","l4"].forEach(L=>{
+      Object.keys(lvlDict(L)).forEach(c=>{
+        if(!seen.has(L+":"+c)){
+          delete lvlDict(L)[c]; del++;
+          if(L==="l4"){ Object.keys(CFG.lv.l5).forEach(fk=>{ if(fk.slice(-1)===c) delete CFG.lv.l5[fk]; }); }
+          else { const pos=L==="l1"?0:(L==="l2"?2:4);
+            Object.keys(CFG.lv.l5).forEach(fk=>{ if(fk.substr(pos,2)===c) delete CFG.lv.l5[fk]; }); }
+        }
+      });
+    });
+  }
+  saveCFG(); refreshAll();
+  const noSrc=Object.keys(lvlDict("l3")).length===0?0:0;   // v6：四级独立，三级分支不再有「无来源」概念
+  return {ok:true,stat:st,del,noSrc:0};
+}
+function showCsvResult(res){
+  if(!res.ok){ csvMsg(`导入失败：${esc(res.msg)}`,"warn"); return; }
+  const s=res.stat;
+  let h=`<div><b>导入完成</b>：新增 <b>${s.add}</b> · 更新 <b>${s.upd}</b> · 无效行 ${s.skip}${res.del?` · 同步删除 <b>${res.del}</b>`:""}（未列出的分类默认保留）</div>`;
+  if(s.uni.length) h+=`<div style="color:var(--warn)">有 ${s.uni.length} 个节点在 CSV 不同行里写了不同的名称，已自动取「与现状不同的那个值」（即你改过的）：${esc(s.uni.slice(0,3).join("；"))}${s.uni.length>3?" …":""}</div>`;
+  if(res.noSrc) h+=`<div style="color:var(--warn)">有 ${res.noSrc} 个三级分类下没有四级来源，①面板将无法选中这些分支，请在⑥里补来源。</div>`;
+  if(s.errs.length) h+=`<div class="muted">无效行明细：<br>${s.errs.slice(0,8).map(esc).join("<br>")}${s.errs.length>8?"<br>…":""}</div>`;
+  csvMsg(h,"ok");
+}
+$("btnImportCsvCfg").onclick=()=>$("fileCsv").click();
+$("fileCsv").onchange=e=>{
+  const f=e.target.files[0]; e.target.value=""; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    let text="";
+    try{ text=new TextDecoder("utf-8").decode(r.result); }catch(err){ text=String(r.result||""); }
+    if(text.indexOf("\ufffd")>=0){                     // UTF-8 解出乱码 → 试 GBK（Excel 另存的 ANSI CSV）
+      try{ const g=new TextDecoder("gbk").decode(r.result); if(g.indexOf("\ufffd")<0) text=g; }catch(err){}
+    }
+    const prune=!!($("chkCsvPrune")&&$("chkCsvPrune").checked);
+    if(prune && !confirm("已勾选「同步删除」：CSV 中未列出的零~四级分类及其五级流水将被永久删除。\n建议先点「导出配置(JSON)」备份一份。\n确定继续？")) return;
+    let res;
+    try{ res=csvImportApply(text,prune); }
+    catch(err){ res={ok:false,msg:String((err&&err.message)||err)}; }
+    showCsvResult(res);
+  };
+  r.readAsArrayBuffer(f);
+};
+
+// ============ 配置导入 / 导出 / 重置 ============
+$("btnExportCfg").onclick=()=>download("erp分类配置.json",JSON.stringify(CFG,null,2),"application/json");
+$("btnImportCfg").onclick=()=>$("fileCfg").click();
+$("fileCfg").onchange=e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{ try{
+    const obj=JSON.parse(r.result);
+    let cfg=obj;
+    if(!obj.lv){                       // 旧版 v5 嵌套树配置 → 转成当前平级清单
+      const conv=(typeof migrateV5==="function")?migrateV5(obj):null;
+      if(!conv) throw 0;
+      cfg=conv;
+    }
+    if(!cfg.lv||!cfg.lv.zero||!cfg.lv.l1||!cfg.lv.l2||!cfg.lv.l3||!cfg.lv.l4||!cfg.lv.l5) throw 0;
+    CFG=cfg; if(typeof CFG.l5seed!=="number") CFG.l5seed=1;
+    saveCFG(); refreshAll(); alert("配置已导入");
+  }catch(err){ alert("导入失败：文件格式不正确（需要当前格式的 erp分类配置.json）"); } };
+  r.readAsText(f); e.target.value="";
+};
+$("btnResetCfg").onclick=()=>{
+  if(!confirm("将清空你的自定义，恢复到源表（data.js）默认分类？")) return;
+  CFG=seedCFG(); saveCFG(); refreshAll();
+};
+$("inL5seed").onchange=()=>{
+  let v=parseInt($("inL5seed").value,10); if(isNaN(v)||v<1)v=1;
+  CFG.l5seed=v; $("inL5seed").value=v; saveCFG();
+};
+
+// ============ 模块导航：点哪显示哪，记住上次所在模块 ============
+const NAV_KEY="erp_nav_v1";
+const PANELS=["pan1","resultPanel","pan3","pan4","pan5","pan6"];
+function showPanel(id,noSave){
+  PANELS.forEach(p=>{ const el=$(p); if(el) el.style.display=(p===id)?"block":"none"; });
+  document.querySelectorAll(".nav-item").forEach(b=>{
+    b.classList.toggle("on", b.dataset.panel===id);
+    if(b.dataset.panel===id) b.classList.remove("dim");
+  });
+  if(!noSave){ try{ localStorage.setItem(NAV_KEY,id); }catch(e){} }
+  if(id==="resultPanel") syncRecordBtn();     // 进②时同步「记录到台账」可用状态
+}
+document.querySelectorAll(".nav-item").forEach(b=>{
+  b.addEventListener("click",()=>{
+    if(b.classList.contains("dim")){ logMsg("还没有生成结果：先在「生成编码」里完成建议并确认"); return; }
+    showPanel(b.dataset.panel);
+    if(window.scrollTo) window.scrollTo({top:0});
+  });
+});
+
+// ===================== 云端共享层（Supabase） =====================
+// 把下面两行占位换成你的 Supabase 项目信息（控制台 → Project Settings → API）。
+// anon key 随前端公开是正常且安全的；真正的数据权限由数据表行级安全(RLS) 控制。
+const SUPABASE_URL      = "https://arxxaypzepqvgzbaqxvw.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_KIdj5hNY82LHH5MkyqCK5w_R_hmA34j";
+
+const DB = (function(){
+  let client=null, enabled=false, cu=null, ch=null;
+  const api={
+    get enabled(){ return enabled; },
+    get user(){ return cu; },
+    get client(){ return client; },
+    init(){ try{
+      if(window.supabase && typeof SUPABASE_URL==="string"
+         && SUPABASE_URL.indexOf("YOUR_")!==0 && SUPABASE_ANON_KEY.indexOf("YOUR_")!==0){
+        client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        enabled = true;
+      }
+    }catch(e){ enabled=false; } return api; },
+    setUser(u){ cu=u; return api; },
+    async restoreSession(){
+      if(!enabled) return null;
+      try{ const {data}=await client.auth.getSession();
+        if(data&&data.session){ cu=data.session.user; return cu; } }catch(e){}
+      return null;
+    },
+    async upsertLedger(arr){
+      if(!enabled||!cu||!Array.isArray(arr)) return;
+      try{ const rows=arr.map(o=>({erp_code:o.erp_code, data:o, updated_at:new Date().toISOString()}));
+        await client.from("ledger").upsert(rows,{onConflict:"erp_code"});
+        setSync("已同步 · 实时"); }catch(e){ setSync("同步失败",true); }
+    },
+    async deleteLedger(erp){
+      if(!enabled||!cu) return;
+      try{ await client.from("ledger").delete().eq("erp_code",erp); }catch(e){}
+    },
+    async deleteAllLedger(){
+      if(!enabled||!cu) return;
+      try{ const {data}=await client.from("ledger").select("erp_code");
+        if(data&&data.length) for(const r of data){ await client.from("ledger").delete().eq("erp_code",r.erp_code); } }catch(e){}
+    },
+    async saveConfig(key,val){
+      if(!enabled||!cu) return;
+      try{ await client.from("app_config").upsert({key,value:val,updated_at:new Date().toISOString()},{onConflict:"key"}); }catch(e){}
+    },
+    async loadAll(){
+      let ledger=[], cfg={};
+      if(!enabled) return {ledger,cfg};
+      try{ const {data}=await client.from("ledger").select("data"); if(data) ledger=data.map(r=>r.data); }catch(e){}
+      try{ const {data}=await client.from("app_config").select("key,value"); if(data) data.forEach(r=>cfg[r.key]=r.value); }catch(e){}
+      return {ledger,cfg};
+    },
+    subscribe(){
+      if(!enabled||!client) return;
+      try{
+        ch=client.channel("ledger-rt")
+          .on("postgres_changes",{event:"*",schema:"public",table:"ledger"},(p)=>{
+            if(p.eventType==="DELETE"){ const erp=p.old&&p.old.erp_code;
+              const i=log.findIndex(x=>x&&x.erp_code===erp); if(i>=0){ log.splice(i,1); saveLogLocal(); renderLog(); renderEx(""); } }
+            else { const o=p.new&&p.new.data; if(!o) return;
+              const i=log.findIndex(x=>x&&x.erp_code===o.erp_code);
+              if(i>=0) log[i]=o; else log.push(o);
+              saveLogLocal(); renderLog(); renderEx(""); }
+            setSync("已同步 · 实时");
+          }).subscribe();
+      }catch(e){}
+    }
+  };
+  return api.init();
+})();
+
+function saveLogLocal(){ try{ localStorage.setItem(LOG_KEY, JSON.stringify(log)); }
+  catch(e){ logMsg("保存失败：浏览器缓存不可用或已写满（先导出归档再清空）"); } }
+function saveCFGLocal(){ try{ localStorage.setItem(CFG_CACHE_KEY, JSON.stringify(CFG)); }catch(e){} }
+function saveExOvLocal(){ try{ localStorage.setItem(EXOV_KEY,JSON.stringify(exOv)); }catch(e){} }
+
+function setSync(t,warn){ const el=document.getElementById("syncStat"); if(!el) return; el.textContent=t; el.style.color=warn?"var(--bad)":"var(--ok)"; }
+
+async function bootstrap(){
+  const {ledger,cfg}=await DB.loadAll();
+  if(ledger&&ledger.length){ log=ledger; saveLogLocal(); }
+  if(cfg&&cfg.CFG&&cfg.CFG.lv){ CFG=cfg.CFG; if(typeof CFG.l5seed!=="number") CFG.l5seed=1; saveCFGLocal(); }
+  else if(DB.enabled&&DB.user){ await DB.saveConfig("CFG",CFG); }   // 首用户把本地分类配置写入云端，团队共享
+  if(cfg&&cfg.exOv&&typeof cfg.exOv==="object"){ exOv=cfg.exOv; }
+  renderLog(); applyExOv(); saveExOvLocal(); renderEx("");
+}
+async function afterLogin(){
+  const {data}=await DB.client.auth.getUser(); DB.setUser(data&&data.user);
+  const mask=document.getElementById("authMask"); if(mask) mask.style.display="none";
+  const bar=document.getElementById("userBar"); if(bar) bar.style.display="flex";
+  const em=document.getElementById("userEmail"); if(em) em.textContent=(DB.user&&DB.user.email)||"";
+  setSync("正在从云端加载…");
+  await bootstrap(); finishStart(); setSync("已同步 · 实时"); DB.subscribe();
+}
+function wireAuth(){
+  const login=async()=>{ const email=document.getElementById("authEmail").value.trim();
+    const pass=document.getElementById("authPass").value;
+    const err=document.getElementById("authErr"); err.style.color="var(--bad)";
+    const {error}=await DB.client.auth.signInWithPassword({email,password});
+    if(error){ err.textContent=error.message; return; }
+    err.textContent=""; await afterLogin(); };
+  const signup=async()=>{ const email=document.getElementById("authEmail").value.trim();
+    const pass=document.getElementById("authPass").value;
+    const err=document.getElementById("authErr"); err.style.color="var(--bad)";
+    if(pass.length<6){ err.textContent="密码至少 6 位"; return; }
+    const {error,data}=await DB.client.auth.signUp({email,password});
+    if(error){ err.textContent=error.message; return; }
+    err.style.color="var(--ok)";
+    err.textContent="注册请求已提交。"+(data&&data.session?"可直接登录。":"请查收验证邮件后登录（若管理员已关闭邮件确认则可直接登录）。");
+    if(data&&data.session){ await afterLogin(); } };
+  document.getElementById("authLogin").onclick=login;
+  document.getElementById("authSignup").onclick=signup;
+  document.getElementById("authPass").addEventListener("keydown",e=>{ if(e.key==="Enter") login(); });
+  document.getElementById("btnLogout").onclick=async()=>{ try{ await DB.client.auth.signOut(); }catch(e){} location.reload(); };
+}
+function wireCloudButtons(){
+  const bExp=document.getElementById("btnBackupAll");
+  if(bExp) bExp.onclick=()=>{
+    if(!log.length){ logMsg("台账为空，无可备份内容"); return; }
+    const payload={app:"erp-code-workbench",version:APP_VER,exported_at:new Date().toISOString(),log:log,CFG:CFG,exOv:exOv};
+    download(`erp云端备份_${fileStamp()}.json`,JSON.stringify(payload,null,2),"application/json");
+    logMsg(`已导出全量备份（台账 ${log.length} 条 + 配置）`); };
+  const bImp=document.getElementById("btnRestoreAll");
+  if(bImp) bImp.onclick=()=>{ const f=document.getElementById("fileRestore"); if(f) f.click(); };
+  const fImp=document.getElementById("fileRestore");
+  if(fImp) fImp.onchange=e=>{ const f=e.target.files[0]; e.target.value=""; if(!f) return;
+    const r=new FileReader(); r.onload=async()=>{ try{
+      const obj=JSON.parse(new TextDecoder("utf-8").decode(r.result));
+      if(!obj||!Array.isArray(obj.log)){ alert("文件格式不对：不是本工作台导出的备份 JSON"); return; }
+      if(!confirm(`将用此备份覆盖当前数据：台账 ${obj.log.length} 条、分类配置 ${obj.CFG?"有":"无"}、源表修订 ${obj.exOv?"有":"无"}。\n确定恢复？`)) return;
+      log=obj.log; await DB.upsertLedger(log); saveLogLocal(); renderLog(); renderEx("");
+      if(obj.CFG){ CFG=obj.CFG; await DB.saveConfig("CFG",CFG); saveCFGLocal(); }
+      if(obj.exOv){ exOv=obj.exOv; await DB.saveConfig("exOv",exOv); saveExOvLocal(); }
+      applyExOv(); refreshAll(); logMsg("已从备份恢复到云端");
+    }catch(err){ alert("导入失败："+err.message); } };
+    r.readAsArrayBuffer(f); };
+  const bLocal=document.getElementById("btnImportLocal");
+  if(bLocal) bLocal.onclick=async()=>{
+    const localLog=loadLog(), localCFG=loadCFG(), localExOv=loadExOv();
+    if(!localLog.length && !Object.keys(localCFG).length && !Object.keys(localExOv).length){ logMsg("本机没有可迁移的旧数据",true); return; }
+    if(!confirm(`把本机旧数据合并到云端（去重叠加，不删云端已有）：台账 ${localLog.length} 条。\n确定迁移？`)) return;
+    const merged={}; log.concat(localLog).forEach(o=>{ if(o&&o.erp_code) merged[o.erp_code]=o; });
+    log=Object.values(merged); await DB.upsertLedger(log); saveLogLocal(); renderLog(); renderEx("");
+    const {cfg}=await DB.loadAll();
+    if(!cfg.CFG){ CFG=localCFG; await DB.saveConfig("CFG",CFG); saveCFGLocal(); }
+    if(!cfg.exOv){ exOv=localExOv; await DB.saveConfig("exOv",exOv); saveExOvLocal(); }
+    applyExOv(); refreshAll(); logMsg("本机旧数据已合并到云端"); };
+}
+
+// ============ 初始化 ============
+function refreshAll(){
+  refreshLevelCascade();
+  renderNav();
+  // 渲染零~四级表的「下拉选择 → 子项行」
+  ["zero","l1","l2","l3","l4"].forEach(renderLvlSelBody);
+  renderCls();
+  renderEmptyTip();
+}
+// 源表为空（如规则变更后）时给出下一步指引，避免打开就是一片空白不知所措
+function renderEmptyTip(){
+  const el=$("clsEmptyTip"); if(!el) return;
+  const nL1=Object.keys(lvlDict("l1")).length;
+  if(EXISTING.length>0 || nL1>0){ el.innerHTML=""; return; }
+  el.innerHTML=`<div class="warnbox">当前源表 <b>没有任何现存编码</b>，分类清单也是空的（2026-10-10 编码规则变更，旧编码已全部作废，未迁移）。
+    <br>下一步二选一：<b>① 在上面点「下载 CSV 模板」→ 按新规则填好零~四级清单 →「导入分类(CSV)」</b>；
+    <b>② 直接在下方各级表里点「＋ 新增一级 / 二级 …」逐条建</b>。
+    <br>分类建好后即可到「① 生成编码」开始出码；五级流水会随生成结果自动生长，不用手建。</div>`;
+}
+async function finishStart(){
+  refreshAll();
+  // 恢复上次所在模块（②无结果时回落到①）
+  let startPanel="pan1";
+  try{ const sv=localStorage.getItem(NAV_KEY); if(PANELS.includes(sv)) startPanel=sv; }catch(e){}
+  if(startPanel==="resultPanel" && !$("resultPanel").dataset.last) startPanel="pan1";
+  showPanel(startPanel,true);
+  syncRecordBtn();                              // 首次进入也同步一次按钮状态
+}
+async function startApp(){
+  wireCloudButtons();
+  if(DB.enabled){
+    const u=await DB.restoreSession();
+    if(u){
+      const bar=document.getElementById("userBar"); if(bar) bar.style.display="flex";
+      const em=document.getElementById("userEmail"); if(em) em.textContent=(u.email||"");
+      setSync("正在从云端加载…");
+      await bootstrap(); finishStart(); setSync("已同步 · 实时"); DB.subscribe();
+      return;
+    }
+    const mask=document.getElementById("authMask"); if(mask) mask.style.display="flex";
+    wireAuth();
+    return;
+  }
+  finishStart();   // 未配置 Supabase：本地模式，与原行为完全一致
+}
+startApp();
+</script>
+</body>
+</html>
