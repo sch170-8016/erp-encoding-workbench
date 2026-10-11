@@ -2545,26 +2545,50 @@ async function afterLogin(){
   setSync("正在从云端加载…");
   await bootstrap(); finishStart(); setSync("已同步 · 实时"); DB.subscribe();
 }
+// 给登录/注册请求加超时，避免网络受限时按钮「点了永无反应」让人误以为坏了
+function withTimeout(p, ms){
+  return Promise.race([ p, new Promise((_, rej)=>setTimeout(()=>rej(new Error("请求超时（"+Math.round(ms/1000)+"s）")), ms)) ]);
+}
 function wireAuth(){
+  const loginBtn=document.getElementById("authLogin");
+  const signupBtn=document.getElementById("authSignup");
+  const setBusy=(b)=>{ if(loginBtn){ loginBtn.disabled=b; loginBtn.textContent=b?"登录中…":"登录"; }
+    if(signupBtn){ signupBtn.disabled=b; signupBtn.textContent=b?"注册中…":"注册新账号"; } };
   const login=async()=>{ const email=document.getElementById("authEmail").value.trim();
     const pass=document.getElementById("authPass").value;
-    const err=document.getElementById("authErr"); err.style.color="var(--bad)";
-    const {error}=await DB.client.auth.signInWithPassword({email,password});
-    if(error){ err.textContent=error.message; return; }
-    err.textContent=""; await afterLogin(); };
+    const err=document.getElementById("authErr"); err.style.color="var(--bad)"; err.textContent="";
+    if(!email||!pass){ err.textContent="请先填写邮箱和密码"; return; }
+    setBusy(true);
+    try{
+      const {error}=await withTimeout(DB.client.auth.signInWithPassword({email,password}),15000);
+      if(error){ err.textContent=error.message; }
+      else { err.textContent=""; await afterLogin(); }
+    }catch(e){ err.textContent="⚠ 无法连接 Supabase 服务器（网络或地区限制）："+(e&&e.message||e)+"。请检查网络或切换可访问的网络后重试。"; }
+    finally{ setBusy(false); }
+  };
   const signup=async()=>{ const email=document.getElementById("authEmail").value.trim();
     const pass=document.getElementById("authPass").value;
-    const err=document.getElementById("authErr"); err.style.color="var(--bad)";
+    const err=document.getElementById("authErr"); err.style.color="var(--bad)"; err.textContent="";
+    if(!email||!pass){ err.textContent="请先填写邮箱和密码"; return; }
     if(pass.length<6){ err.textContent="密码至少 6 位"; return; }
-    const {error,data}=await DB.client.auth.signUp({email,password});
-    if(error){ err.textContent=error.message; return; }
-    err.style.color="var(--ok)";
-    err.textContent="注册请求已提交。"+(data&&data.session?"可直接登录。":"请查收验证邮件后登录（若管理员已关闭邮件确认则可直接登录）。");
-    if(data&&data.session){ await afterLogin(); } };
-  document.getElementById("authLogin").onclick=login;
-  document.getElementById("authSignup").onclick=signup;
-  document.getElementById("authPass").addEventListener("keydown",e=>{ if(e.key==="Enter") login(); });
-  document.getElementById("btnLogout").onclick=async()=>{ try{ await DB.client.auth.signOut(); }catch(e){} location.reload(); };
+    setBusy(true);
+    try{
+      const {error,data}=await withTimeout(DB.client.auth.signUp({email,password}),15000);
+      if(error){ err.textContent=error.message; }
+      else {
+        err.style.color="var(--ok)";
+        err.textContent="注册成功。"+(data&&data.session?"已自动登录。":"若提示查收验证邮件，请先确认（管理员已关闭邮件确认则无需邮件）。");
+        if(data&&data.session){ await afterLogin(); }
+      }
+    }catch(e){ err.textContent="⚠ 无法连接 Supabase 服务器（网络或地区限制）："+(e&&e.message||e)+"。请检查网络或切换可访问的网络后重试。"; }
+    finally{ setBusy(false); }
+  };
+  if(loginBtn) loginBtn.onclick=login;
+  if(signupBtn) signupBtn.onclick=signup;
+  const passEl=document.getElementById("authPass");
+  if(passEl) passEl.addEventListener("keydown",e=>{ if(e.key==="Enter") login(); });
+  const lo=document.getElementById("btnLogout");
+  if(lo) lo.onclick=async()=>{ try{ await DB.client.auth.signOut(); }catch(e){} location.reload(); };
 }
 function wireCloudButtons(){
   const bExp=document.getElementById("btnBackupAll");
