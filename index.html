@@ -2560,7 +2560,7 @@ function wireAuth(){
     if(!email||!pass){ err.textContent="请先填写邮箱和密码"; return; }
     setBusy(true);
     try{
-      const {error}=await withTimeout(DB.client.auth.signInWithPassword({email,password}),15000);
+      const {error}=await withTimeout(DB.client.auth.signInWithPassword({email,password:pass}),15000);
       if(error){ err.textContent=error.message; }
       else { err.textContent=""; await afterLogin(); }
     }catch(e){ err.textContent="⚠ 无法连接 Supabase 服务器（网络或地区限制）："+(e&&e.message||e)+"。请检查网络或切换可访问的网络后重试。"; }
@@ -2573,7 +2573,7 @@ function wireAuth(){
     if(pass.length<6){ err.textContent="密码至少 6 位"; return; }
     setBusy(true);
     try{
-      const {error,data}=await withTimeout(DB.client.auth.signUp({email,password}),15000);
+      const {error,data}=await withTimeout(DB.client.auth.signUp({email,password:pass}),15000);
       if(error){ err.textContent=error.message; }
       else {
         err.style.color="var(--ok)";
