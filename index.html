@@ -46,8 +46,8 @@
   @media (max-width:840px){
     .hd-inner{flex-wrap:wrap;gap:12px;align-items:center}
     .hd-right{margin-left:0;flex-direction:row;align-items:center;flex-wrap:wrap;flex:1 1 100%}
-    /* 手机端精简抬头：隐藏英文全称与副标题长串，KINTO 图标(logo)紧贴中文抬头左侧"前面"，单行显示，整体缩减篇幅 */
-    .hd-en{display:none}
+    /* 手机端精简抬头：KINTO 图标(logo)紧贴中文抬头左侧"前面"；英文全称恢复为紧凑小字单行（不再隐藏），副标题长串仍隐藏以缩减篇幅 */
+    .hd-en{display:block;font-size:11px;letter-spacing:.5px;line-height:1.25;color:rgba(255,255,255,.8);margin:0;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .hd-sub{display:none}
     .hd-logo{width:34px;height:34px;border-radius:9px;padding:3px}
     .hd-cn{font-size:18px;letter-spacing:1px;white-space:nowrap}
@@ -1293,7 +1293,7 @@ $("btnBatchTpl").onclick=()=>{
 };
 $("btnBatchImport").onclick=()=>$("fileBatch").click();
 // 版本标记：改动后请同步更新此串，方便一眼确认浏览器加载的是不是最新页面（防 file:// 缓存）
-const APP_VER="2026-10-11 23:17 · 云端共享（手机抬头精简）";
+const APP_VER="2026-10-11 23:40 · 云端共享（手机英文抬头恢复·紧凑单行）";
 if($("verTag")) $("verTag").textContent="v"+APP_VER;
 $("fileBatch").onchange=e=>{
   const f=e.target.files[0]; e.target.value=""; if(!f) return;
