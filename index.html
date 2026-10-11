@@ -45,9 +45,12 @@
   .hd-badge.gold{background:rgba(42,208,255,.18);border-color:rgba(142,240,255,.6);color:#b9ecff}
   @media (max-width:840px){
     .hd-inner{flex-wrap:wrap;gap:12px}
-    .hd-right{margin-left:0;flex-direction:row;align-items:center}
+    .hd-right{margin-left:0;flex-direction:row;align-items:center;flex-wrap:wrap;flex:1 1 100%}
     .hd-cn{font-size:22px;letter-spacing:2px;white-space:normal}
     .hd-logo{width:48px;height:48px;border-radius:12px;padding:4px}
+    /* 账号栏独占整行、左起铺满，退出按钮用两端对齐均匀分布，避免被挤到右边界外 */
+    .user-bar{flex:1 1 100%;justify-content:space-between;gap:6px;margin-top:2px}
+    .user-bar .ue{max-width:none;flex:1 1 auto}
   }
   .wrap{max-width:1180px;margin:0 auto;padding:20px 24px 60px}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-bottom:18px}
@@ -221,6 +224,7 @@
   @media(max-width:560px){
     .pipe{grid-template-columns:repeat(2,1fr)}
     .sidenav{grid-template-columns:repeat(2,1fr)}
+    .hd-badge{display:none}   /* 超窄屏隐藏装饰徽标，账号 / 退出独占整行不被挤压 */
   }
 </style>
 <style>
