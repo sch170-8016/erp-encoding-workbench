@@ -2697,6 +2697,7 @@ async function finishStart(){
 async function startApp(){
   wireCloudButtons();
   if(DB.enabled){
+    wireAuth();   // 始终绑定 登录/注册/退出 逻辑（含会话恢复后右上角「退出」按钮）
     const u=await DB.restoreSession();
     if(u){
       const bar=document.getElementById("userBar"); if(bar) bar.style.display="flex";
@@ -2707,7 +2708,6 @@ async function startApp(){
     }
     const mask=document.getElementById("authMask"); if(mask) mask.style.display="flex";
     fillRemembered();
-    wireAuth();
     return;
   }
   finishStart();   // 未配置 Supabase：本地模式，与原行为完全一致
