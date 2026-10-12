@@ -372,6 +372,7 @@
       <button class="ghost" id="btnBatchImport">批量录入（CSV 导入）</button>
       <button class="ghost sm" id="btnBatchTpl">下载批量模板</button>
       <span class="muted">整表一次判定：自动查重复用 / 同批连号分配五级，先看预览再写入台账</span>
+      <div class="note" style="margin:6px 0 0"><b>图号规则同单条</b>：填了<b>有效图号</b>（不含中文）→ <b>图号直接作为 ERP 码</b>，此时<b>「五级码」列会被忽略</b>，零~四级仍要填（仅作属性记录，不参与编码）；图号<b>含中文</b>或留空 → 按「品名+规格+材质」判定并生成 13 位六层分类码。<b>模板列结构不变（14 列）</b>。</div>
       <span id="verTag" class="muted" style="margin-left:auto;font-size:11px;opacity:.7"></span>
       <input type="file" id="fileBatch" accept=".csv,.txt" style="display:none">
     </div>
@@ -823,15 +824,10 @@ $("btnSuggest").onclick=()=>{
   // 2026-10-10 定的新口径：**填了图号就不再退化到「品名+规格+材质」**。
   // 理由：图号不同即不同件。图号在本分支查不到 = 这个图号还没入过库 = 新物料；
   // 若继续按品名+规格+材质比，会把两个不同图号的零件并成同一个 ERP 码（实测 5115914 / 5115916 侧板就被合成了一码）。
-  let autoReuse=null, drawHits=[], drawMissed=false;
-  if(isRealDrawing(draw)){
-    drawHits=mem.filter(e=>norm(e.drawing)===norm(draw));
-    if(drawHits.length===1) autoReuse=drawHits[0];
-    else if(drawHits.length>1){                       // 同一图号在本分支有多条（规格不同），再用 品名+规格+材质 收敛
-      autoReuse=drawHits.find(e=>norm(e.name)+"|"+norm(e.guige)+"|"+norm(mat)===keyIn)||drawHits[0];
-    }else drawMissed=true;                            // 图号在本分支无命中 → 视作新物料
-  }
-  if(!autoReuse && !drawMissed) mem.forEach(e=>{ const k=norm(e.name)+"|"+norm(e.guige)+"|"+norm(mat); if(k===keyIn) autoReuse=e; });
+  // 注：真图号已在上方 L781 提前 return 走「图号即码」，能到这里说明 draw 为空或含中文 →
+  // 一律按「品名+规格+材质」匹配。（旧版在这里又判一次 isRealDrawing，是永远不可达的死代码，已清理）
+  let autoReuse=null, drawHits=[];
+  mem.forEach(e=>{ const k=norm(e.name)+"|"+norm(e.guige)+"|"+norm(mat); if(k===keyIn) autoReuse=e; });
   lastSuggest={z,l1,l2,l3,l4,l5,l5Source,draw,name,spec,mat,pre,mem,base,autoReuse,keyIn,drawHits};
   const path=getPathNames(z,l1,l2,l3,l4);
   let html=`<div class="analysis" style="margin-top:6px">
@@ -845,10 +841,6 @@ $("btnSuggest").onclick=()=>{
   }else{
     html+=`<div class="note" style="margin-top:6px">未自动匹配到完全一致物料。请从下方下拉菜单人工核对并选择：选「复用」则沿用该码，选「新建」则按建议码创建。</div>`;
   }
-  if(draw && drawHits.length>1)
-    html+=`<div class="note" style="margin-top:6px;color:var(--warn)">图号「${esc(draw)}」在本分支有 ${drawHits.length} 条（规格不同），已按「品名+规格+材质」收敛到 ${esc(autoReuse.erp)}，<b>请在下方下拉里人工核对后再确认</b>。</div>`;
-  else if(drawMissed)
-    html+=`<div class="note" style="margin-top:6px">所填图号「${esc(draw)}」在本分支 ${mem.length} 条现存记录中未出现 → <b>按新物料处理</b>（图号不同即不同件，不再按「品名+规格+材质」合并成一个码）。</div>`;
   if(draw && !isRealDrawing(draw))
     html+=`<div class="note" style="margin-top:6px;color:var(--warn)">所填「${esc(draw)}」含中文，按规则<b>不是有效图号</b> → 按无图号处理，走 13 位分类编码。</div>`;
   let opts="";
@@ -875,7 +867,8 @@ function isRealDrawing(d){
 // 仅生成「记录对象」，不碰任何 UI —— 供批量写入等不需要切页面的场景复用
 // codeType: "drawing"=图号即码（erp=图号原样，不参与五级流水）；"category"=13 位六层分类码
 function makeRecord(z,l1,l2,l3,l4,l5,action,reason,missing,drawing,codeType){
-  codeType=(codeType==="drawing")?"drawing":"category";
+  // 防御：标了 drawing 却没有图号（异常调用）时，回落成分类码，绝不产出空 ERP 码
+  codeType=(codeType==="drawing" && !!String(drawing==null?"":drawing).trim())?"drawing":"category";
   const isDraw=codeType==="drawing";
   const erp=isDraw?String(drawing==null?"":drawing).trim():z+l1+l2+l3+l4+l5;
   const path=getPathNames(z,l1,l2,l3,l4,isDraw?"":l5);
@@ -905,7 +898,9 @@ function emit(z,l1,l2,l3,l4,l5,action,reason,missing,drawing,codeType){
   $("codeBig").textContent=out.erp_code;
   $("actionTag").innerHTML=`<span class="tag ${action==='新建'?'new':'reuse'}">${action}</span> <span class="muted">${path}</span>`;
   $("analysisBox").innerHTML=
-    `<div><b>① 命中分支 / 前缀</b>：${path}；前缀 ${z+l1+l2+l3+l4}</div>`+
+    (out.code_type==="drawing"
+      ? `<div><b>① 分类路径（仅作属性记录，不参与编码）</b>：${path}</div>`
+      : `<div><b>① 命中分支 / 前缀</b>：${path}；前缀 ${z+l1+l2+l3+l4}</div>`)+
     `<div><b>② 差异维度比对</b>：${nodeDiff([z,l1,l2,l3])||"—"}；与同分支现存物料逐维核对</div>`+
     `<div><b>③ 新建/复用证据</b>：${reason}</div>`+
     (out.code_type==="drawing"
@@ -1355,7 +1350,9 @@ function batchWrite(){
   batchRows.forEach(r=>{
     if(!r.valid||r.pick==="skip") return;
     if(!r.final){ bad++; if(errs.length<10) errs.push(`第${r.ln}行：${r.finalErr||"未生成编码"}`); return; }
-    const s=/^\d{13}$/.test(r.final)?splitErp(r.final):{z:r.z,l1:r.l1,l2:r.l2,l3:r.l3,l4:r.l4,l5:""};
+    // ★ 加 !r.isDrawing 守卫：图号恰好是 13 位纯数字时（罕见但可能），
+      //   纯靠 /^\d{13}$/ 会把它当分类码切开，切出的层级是错的。
+    const s=(!r.isDrawing && /^\d{13}$/.test(r.final))?splitErp(r.final):{z:r.z,l1:r.l1,l2:r.l2,l3:r.l3,l4:r.l4,l5:""};
     let action="新建",reason="";
     if(r.pick==="new"){ action="新建";
       reason=r.isDrawing
@@ -1373,8 +1370,10 @@ function batchWrite(){
     let exIdx=-1;
     if(r.draw){
       const d=norm(r.draw);
-      for(let i=0;i<log.length;i++){ if(String(log[i].drawing||"")===d && log[i].erp_code===r.final){ exIdx=i; break; } }
-      if(exIdx<0) for(let i=0;i<log.length;i++){ if(String(log[i].drawing||"")===d){ exIdx=i; break; } }
+      // ★ 两侧都要 norm：log 里存的是原始图号（如 FLX1002766），而 d 已归一化（flx1002766），
+      //   直接字符串比较会永远不等 → 同一图号重复导入时会新增重复行而不是就地覆盖。
+      for(let i=0;i<log.length;i++){ if(norm(log[i].drawing||"")===d && log[i].erp_code===r.final){ exIdx=i; break; } }
+      if(exIdx<0) for(let i=0;i<log.length;i++){ if(norm(log[i].drawing||"")===d){ exIdx=i; break; } }
     }
     if(exIdx<0) for(let i=0;i<log.length;i++){ if(log[i].erp_code===r.final){ exIdx=i; break; } }
     if(exIdx>=0){
@@ -1410,7 +1409,7 @@ $("btnBatchTpl").onclick=()=>{
 };
 $("btnBatchImport").onclick=()=>$("fileBatch").click();
 // 版本标记：改动后请同步更新此串，方便一眼确认浏览器加载的是不是最新页面（防 file:// 缓存）
-const APP_VER="2026-10-13 00:50 · 双轨编码 + 源表重置/重建加管理密码";
+const APP_VER="2026-10-13 01:10 · 双轨编码 + 自查修复(norm匹配/13位守卫/死代码清理)";
 if($("verTag")) $("verTag").textContent="v"+APP_VER;
 $("fileBatch").onchange=e=>{
   const f=e.target.files[0]; e.target.value=""; if(!f) return;
@@ -1557,7 +1556,8 @@ function exSrcTag(src){
 }
 function exRowHTML(e){
   const edt=!!e.edited;
-  const path=`${e.zero}/${e.l1}/${e.l2}/${e.l3}/${e.l4}/${e.l5}`;
+  // 图号即码的记录五级为空，过滤掉空段避免尾部出现悬空的 "/"
+  const path=[e.zero,e.l1,e.l2,e.l3,e.l4,e.l5].filter(x=>x!=null&&x!=="").join("/");
   if(exEditing===e.erp){
     let cells="";
     EX_FIELD.forEach(([f])=>{ cells+=`<td><input class="ex-inp" id="exIn_${e.erp}_${f}" value="${esc(e[f]==null?"":e[f])}"></td>`; });
