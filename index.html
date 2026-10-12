@@ -268,11 +268,11 @@
     <div class="hd-txt">
       <div class="hd-en">Shanghai KINTO Electric Co., Ltd.</div>
       <h1 class="hd-cn">上海劲拓电器有限公司</h1>
-      <p class="hd-sub">ERP 物料编码工作台 · <b>13 位六层编码</b> · 零级(2) 一级(2) 二级(2) 三级(2) 四级(1) 五级(4) · 一物一码，自动流水</p>
+      <p class="hd-sub">ERP 物料编码工作台 · <b>双轨编码：图号即码 / 13 位六层</b> · 零级(2) 一级(2) 二级(2) 三级(2) 四级(1) 五级(4) · 一物一码</p>
     </div>
     <div class="hd-right">
       <span class="hd-badge gold">KINTO · ERP CODE</span>
-      <span class="hd-badge">六层结构 · 13 位</span>
+      <span class="hd-badge">图号即码 · 六层13位</span>
       <div id="userBar" class="user-bar" style="display:none">
         <span id="userEmail" class="ue"></span>
         <span id="syncStat" class="sync"></span>
@@ -339,7 +339,7 @@
     <div class="note" style="margin-top:8px">五级（4位）在同分支内自动流水，无需选择：分支为空取「起始流水」，有现存码取最大+1。可在下方「⑥ 分类管理」面板调整起始流水。</div>
     <div class="row" style="margin-top:14px">
       <div>
-        <label>图号 / Drawing No.（选填，填了可精确命中复用）</label>
+        <label>图号 / Drawing No.（选填；填了有效图号则直接作为 ERP 码）</label>
         <input type="text" id="inDraw" placeholder="如：5115845 / Carton box">
       </div>
       <div>
@@ -362,7 +362,7 @@
         </datalist>
       </div>
     </div>
-    <div class="note" style="margin-top:6px"><b>品名</b>、<b>材质牌号</b>为必填（一物一码的判定要素）。<b>图号</b>是最精确的区分符：<b>填了图号就只认图号</b>——在本分支命中即建议复用，查不到即判为新物料；图号留空时才退一步按「品名 + 规格 + 材质」比对。（口径：图号不同即不同物料，不会被合并成同一个码）</div>
+    <div class="note" style="margin-top:6px"><b>品名</b>、<b>材质牌号</b>为必填（一物一码的判定要素）。<b>图号规则</b>：填了<b>有效图号</b>（不含中文，如 <code>5115941</code> / <code>3925673</code> / <code>FLX1002766</code>）→ <b>图号直接作为 ERP 码</b>，不再生成 13 位分类码（分类路径仍要选，仅作属性记录，不参与编码）；图号<b>含中文</b>（如 标签202 / 纸板300x250）或留空 → 按「品名 + 规格 + 材质」判定，生成 13 位六层分类码。（口径：图号唯一，图号不同即不同物料）</div>
     <div class="btnrow">
       <button id="btnSuggest">生成建议（含分支复用核查）</button>
       <button class="ghost" id="btnReset">清空</button>
@@ -404,7 +404,7 @@
       <input type="file" id="fileRestore" accept=".json" style="display:none">
     </div>
     <div class="tbl-scroll"><table id="logTable"><thead>
-      <tr><th>#</th><th>记录时间</th><th>ERP 13位</th><th>图号</th><th>路径</th><th>动作</th><th>品名</th><th>规格</th><th>材料牌号</th><th>依据</th><th>操作</th></tr>
+      <tr><th>#</th><th>记录时间</th><th>ERP 码</th><th>图号</th><th>路径</th><th>动作</th><th>品名</th><th>规格</th><th>材料牌号</th><th>依据</th><th>操作</th></tr>
     </thead><tbody></tbody></table></div>
     <div class="note">已开启云端共享：台账存 Supabase，<b>团队所有登录成员看到同一份、实时互见</b>（右上角显示同步状态）。本地浏览器仍留一份缓存作兜底。只有「单行删除 / 清空台账」才会移除；「全量备份」可把台账+配置导出 JSON 归档（Free 层无自动备份，建议定期备份）。不回写源 xlsx。</div>
   </div>
@@ -432,7 +432,7 @@
       <span id="exMsg" class="note" style="margin-left:2px"></span>
     </div>
     <div class="tbl-scroll"><table id="exTable"><thead>
-      <tr><th>ERP 13位</th><th>图号</th><th>品名</th><th>规格</th><th>材料牌号</th><th>路径(零/一/二/三/四/五)</th><th>操作</th></tr>
+      <tr><th>ERP 码</th><th>图号</th><th>品名</th><th>规格</th><th>材料牌号</th><th>路径(零/一/二/三/四/五)</th><th>操作</th></tr>
     </thead><tbody></tbody></table></div>
     <div class="note">本表是<b>「现存编码」统一总表</b> = 源表(data.js) <b>∪</b> ③编码台账（本机生成）合并去重，每行左侧徽标标出来源（<span style="font-size:11px;padding:1px 5px;border-radius:6px;background:#e8eefc;color:#2b5fd0">源表</span> / <span style="font-size:11px;padding:1px 5px;border-radius:6px;background:#eafaf0;color:#1a9e5a">台账</span>）。点编码右侧「复制」可复制 13 位码；点「修订」可改<b>图号 / 品名 / 规格 / 材料牌号</b>（13 位码本身不可改 —— 它是物料主键；确需换码请在 ① 新建）。<b>材料牌号：源表行多为空</b>（旧 data.js 本身无材料字段），台账行显示生成时记录的材料牌号；在此修订台账行的材料牌号会写回 ③ 台账存储。<b>源表类修订写入修订层、台账类写入台账存储，均不改动 data.js 源文件</b>，可随时「全部恢复」或用「导出修订清单」回写源表。<b>「导出现存编码(CSV)」导出本页全部合并总表（含源表+台账、含当前所有列：ERP/图号/品名/规格/材料牌号/路径/来源），与「导出修订清单」互不影响。</b></div>
   </div>
@@ -747,7 +747,7 @@ function branchMembers(z,l1,l2,l3,l4){
   const pre=z+l1+l2+l3+l4;
   const a=EXISTING.filter(e=>e.erp.startsWith(pre));
   // 台账(log)里的同分支码也计入成员，否则 EXISTING 为空时（当前部署）单条新建会漏算已记录的流水
-  const b=(Array.isArray(log)?log:[]).filter(o=>String(o.erp_code||"").startsWith(pre))
+  const b=(Array.isArray(log)?log:[]).filter(o=>/^\d{13}$/.test(String(o.erp_code||""))&&String(o.erp_code).startsWith(pre))
           .map(o=>({erp:o.erp_code,drawing:o.drawing,name:o.name,guige:o.spec,spec:o.spec,mat:o.mat,l5:String(o.erp_code).slice(9,13)}));
   return a.concat(b);
 }
@@ -777,6 +777,35 @@ $("btnSuggest").onclick=()=>{
   if(miss.length){ area.innerHTML=`<div class="warnbox">${miss.join("、")}为必填，缺其一无法判定一物一码。</div>`; return; }
   // 该分支此前没有启用这个来源时补建节点（四级=全局共用枚举，选了就算启用）
   const autoNew=ensureL4Node(l1,l2,l3,l4);
+  // ===== 图号即码：图号列不含中文 → 直接以图号作为 ERP 码，不走五级流水 =====
+  if(isRealDrawing(draw)){
+    const dcode=draw.trim();
+    const hitLog=(Array.isArray(log)?log:[]).find(o=>norm(o.drawing)===norm(dcode));
+    const hitEx=EXISTING.find(e=>norm(e.drawing)===norm(dcode));
+    const hit=hitLog?{erp:hitLog.erp_code,drawing:dcode,name:hitLog.name,guige:hitLog.spec}
+                    :(hitEx?{erp:hitEx.erp,drawing:dcode,name:hitEx.name,guige:hitEx.guige}:null);
+    lastSuggest={z,l1,l2,l3,l4,l5:"",l5Source:"图号即码",draw,name,spec,mat,pre:z+l1+l2+l3+l4,
+                 mem:[],base:0,autoReuse:hit,keyIn:norm(name)+"|"+norm(spec)+"|"+norm(mat),
+                 drawHits:hit?[hit]:[],mode:"drawing",erpCode:dcode};
+    const dpath=getPathNames(z,l1,l2,l3,l4);
+    let dhtml=`<div class="analysis" style="margin-top:6px">
+      ${autoNew?`<div class="muted" style="margin-bottom:4px">本三级分支此前未启用「${l4} ${nodeName([z,l1,l2,l3,l4])}」，已在「⑥ 分类管理」中补建该来源。</div>`:""}
+      <div><b>编码模式</b>：<b>图号即码</b> —— 检测到有效图号 <b>${esc(dcode)}</b>（不含中文），直接作为 ERP 码，<b>不参与五级流水</b></div>
+      <div><b>分类路径（仅作属性记录，不参与编码）</b>：${dpath}</div>
+    </div>`;
+    if(hit) dhtml+=`<div class="warnbox" style="margin-top:6px">该图号已在库中存在 → 建议 <b>复用</b>：${esc(hit.erp)}（${esc(hit.name||"—")}）</div>`;
+    else dhtml+=`<div class="note" style="margin-top:6px">该图号在库中未出现 → 按 <b>新建</b> 处理，ERP 码 = 图号 <b>${esc(dcode)}</b>。</div>`;
+    let dopts="";
+    if(hit) dopts+=`<option value="${esc(hit.erp)}">✔ 复用（图号已存在 ${esc(hit.erp)}）</option>`;
+    dopts+=`<option value="__new__">▶ 新建（${esc(dcode)}）</option>`;
+    dhtml+=`<div class="row" style="margin-top:10px;align-items:flex-end">
+      <div style="flex:3;min-width:260px"><label>匹配建议</label><select id="selAction">${dopts}</select></div>
+      <div style="flex:0"><label>&nbsp;</label><button id="btnConfirm">确认</button></div>
+    </div>`;
+    area.innerHTML=dhtml;
+    $("btnConfirm").onclick=confirmAction;
+    return;
+  }
   const pre=z+l1+l2+l3+l4;
   const mem=branchMembers(z,l1,l2,l3,l4);
   const base=maxL5(mem);
@@ -795,7 +824,7 @@ $("btnSuggest").onclick=()=>{
   // 理由：图号不同即不同件。图号在本分支查不到 = 这个图号还没入过库 = 新物料；
   // 若继续按品名+规格+材质比，会把两个不同图号的零件并成同一个 ERP 码（实测 5115914 / 5115916 侧板就被合成了一码）。
   let autoReuse=null, drawHits=[], drawMissed=false;
-  if(draw){
+  if(isRealDrawing(draw)){
     drawHits=mem.filter(e=>norm(e.drawing)===norm(draw));
     if(drawHits.length===1) autoReuse=drawHits[0];
     else if(drawHits.length>1){                       // 同一图号在本分支有多条（规格不同），再用 品名+规格+材质 收敛
@@ -820,6 +849,8 @@ $("btnSuggest").onclick=()=>{
     html+=`<div class="note" style="margin-top:6px;color:var(--warn)">图号「${esc(draw)}」在本分支有 ${drawHits.length} 条（规格不同），已按「品名+规格+材质」收敛到 ${esc(autoReuse.erp)}，<b>请在下方下拉里人工核对后再确认</b>。</div>`;
   else if(drawMissed)
     html+=`<div class="note" style="margin-top:6px">所填图号「${esc(draw)}」在本分支 ${mem.length} 条现存记录中未出现 → <b>按新物料处理</b>（图号不同即不同件，不再按「品名+规格+材质」合并成一个码）。</div>`;
+  if(draw && !isRealDrawing(draw))
+    html+=`<div class="note" style="margin-top:6px;color:var(--warn)">所填「${esc(draw)}」含中文，按规则<b>不是有效图号</b> → 按无图号处理，走 13 位分类编码。</div>`;
   let opts="";
   if(autoReuse) opts+=`<option value="${autoReuse.erp}">✔ 复用（已自动匹配 ${autoReuse.erp}）</option>`;
   opts+=`<option value="__new__">▶ 新建（${pre}${l5}）</option>`;
@@ -833,23 +864,39 @@ $("btnSuggest").onclick=()=>{
   $("btnConfirm").onclick=confirmAction;
 };
 
+// ============ 图号即码：真图号判定 ============
+// 真图号 = 不含中文/全角字符的编码串（5115941 / 3925673 / 2701801507 / FLX1002766）；
+// 含中文的一律视为「非图号」（标签202 / 纸板300x250），走 13 位分类编码。
+const CJK_RE=/[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef\u3000-\u303f]/;
+function isRealDrawing(d){
+  const s=String(d==null?"":d).trim();
+  return !!s && !CJK_RE.test(s);
+}
 // 仅生成「记录对象」，不碰任何 UI —— 供批量写入等不需要切页面的场景复用
-function makeRecord(z,l1,l2,l3,l4,l5,action,reason,missing,drawing){
-  const erp=z+l1+l2+l3+l4+l5;
-  const path=getPathNames(z,l1,l2,l3,l4,l5);
-  const breakdown={zero:z,level1:l1,level2:l2,level3:l3,level4:l4,level5:l5};
-  const checks=[
-    ["① 13位纯数字", erp.length===13 && /^\d{13}$/.test(erp)],
-    ["② 各级映射合法", breakdown.level1.length===2&&breakdown.level2.length===2&&breakdown.level3.length===2&&breakdown.level4.length===1&&breakdown.level5.length===4],
-    ["③ 流水连续", true],
-    ["④ 新建/复用依据明确", reason.length>0]
-  ];
-  return {erp_code:erp,drawing:drawing||"",level_breakdown:breakdown,category_path:path,action,action_reason:reason,
+// codeType: "drawing"=图号即码（erp=图号原样，不参与五级流水）；"category"=13 位六层分类码
+function makeRecord(z,l1,l2,l3,l4,l5,action,reason,missing,drawing,codeType){
+  codeType=(codeType==="drawing")?"drawing":"category";
+  const isDraw=codeType==="drawing";
+  const erp=isDraw?String(drawing==null?"":drawing).trim():z+l1+l2+l3+l4+l5;
+  const path=getPathNames(z,l1,l2,l3,l4,isDraw?"":l5);
+  const breakdown=isDraw
+    ? {zero:z,level1:l1,level2:l2,level3:l3,level4:l4,level5:""}
+    : {zero:z,level1:l1,level2:l2,level3:l3,level4:l4,level5:l5};
+  const checks=isDraw
+    ? [["① 图号即码（不含中文）", isRealDrawing(erp)],
+       ["② 长度 ≤20（易助上限）", erp.length>0 && erp.length<=20],
+       ["③ 图号唯一性已核查", true],
+       ["④ 新建/复用依据明确", reason.length>0]]
+    : [["① 13位纯数字", erp.length===13 && /^\d{13}$/.test(erp)],
+       ["② 各级映射合法", breakdown.level1.length===2&&breakdown.level2.length===2&&breakdown.level3.length===2&&breakdown.level4.length===1&&breakdown.level5.length===4],
+       ["③ 流水连续", true],
+       ["④ 新建/复用依据明确", reason.length>0]];
+  return {erp_code:erp,drawing:drawing||"",code_type:codeType,level_breakdown:breakdown,category_path:path,action,action_reason:reason,
           missing_attrs:missing||[],self_check:checks.map((c,i)=>`${i+1}. ${c[0]} ${c[1]?"✓":"✗"}`)};
 }
 // 渲染「② 结果与自检」面板并切到该页（用户点「确认」时调用）
-function emit(z,l1,l2,l3,l4,l5,action,reason,missing,drawing){
-  const out=makeRecord(z,l1,l2,l3,l4,l5,action,reason,missing,drawing);
+function emit(z,l1,l2,l3,l4,l5,action,reason,missing,drawing,codeType){
+  const out=makeRecord(z,l1,l2,l3,l4,l5,action,reason,missing,drawing,codeType);
   const path=out.category_path;
   $("resultPanel").style.display="block";
   const navRes=document.querySelector('.nav-item[data-panel="resultPanel"]');
@@ -861,7 +908,9 @@ function emit(z,l1,l2,l3,l4,l5,action,reason,missing,drawing){
     `<div><b>① 命中分支 / 前缀</b>：${path}；前缀 ${z+l1+l2+l3+l4}</div>`+
     `<div><b>② 差异维度比对</b>：${nodeDiff([z,l1,l2,l3])||"—"}；与同分支现存物料逐维核对</div>`+
     `<div><b>③ 新建/复用证据</b>：${reason}</div>`+
-    `<div><b>④ 五级流水与连续性</b>：取值 ${l5}（同分支内独立计数，新建=最大+1 / 复用=沿用既有）</div>`;
+    (out.code_type==="drawing"
+      ? `<div><b>④ 图号即码</b>：ERP 码直接取图号 <b>${out.erp_code}</b>，不参与五级流水（分类路径仅作属性记录）</div>`
+      : `<div><b>④ 五级流水与连续性</b>：取值 ${l5}（同分支内独立计数，新建=最大+1 / 复用=沿用既有）</div>`);
   $("jsonBox").textContent=JSON.stringify(out,null,2);
   $("selfCheck").innerHTML=out.self_check.map(c=>`<li class="${c.indexOf("✓")>=0?'pass':''}">${c}</li>`).join("");
   return out;
@@ -874,6 +923,12 @@ function confirmAction(){
 }
 function confirmNew(){
   const s=lastSuggest;
+  if(s.mode==="drawing"){
+    const reason=`检测到有效图号「${s.draw}」，库中不存在 → 按「图号即码」规则，ERP 码直接取图号（不参与五级流水；分类路径仅作属性记录）`;
+    const erp=emit(s.z,s.l1,s.l2,s.l3,s.l4,"","新建",reason,[],s.draw,"drawing");
+    $("resultPanel").dataset.last=JSON.stringify({...erp, name:s.name, spec:s.spec, mat:s.mat, drawing:s.draw});
+    return;
+  }
   const reason=s.draw
     ? `差异维度[${nodeDiff([s.z,s.l1,s.l2,s.l3])||"—"}]下，本分支内图号「${s.draw}」及其品名+规格+材质均无完全一致物料，五级按自动流水取 ${s.l5}`
     : `差异维度[${nodeDiff([s.z,s.l1,s.l2,s.l3])||"—"}]下，本分支无完全一致物料（品名+规格+材质），五级按自动流水取 ${s.l5}`;
@@ -882,14 +937,23 @@ function confirmNew(){
 }
 function confirmReuse(erpCode){
   const s=lastSuggest;
+  if(s.mode==="drawing"){
+    const reason=`图号「${s.draw}」在库中已登记为 ${erpCode}，按「图号即码」规则沿用该码（图号具备唯一性）`;
+    const erp=emit(s.z,s.l1,s.l2,s.l3,s.l4,"","复用",reason,[],s.draw,"drawing");
+    $("resultPanel").dataset.last=JSON.stringify({...erp, name:s.name, spec:s.spec, mat:s.mat, drawing:s.draw});
+    return;
+  }
   // 复用码可能来自源表(EXISTING)或台账(log)——下拉现已同时列出两者
   let e=EXISTING.find(x=>x.erp===erpCode);
   if(!e){
     const lo=(Array.isArray(log)?log:[]).find(o=>o.erp_code===erpCode);
     if(lo){
-      const c=lo.erp_code;
-      e={erp:c,drawing:lo.drawing,name:lo.name,guige:lo.spec,spec:lo.spec,mat:lo.mat,l5:c.slice(9,13),
-         zero:c.slice(0,2),level1:c.slice(2,4),level2:c.slice(4,6),level3:c.slice(6,8),level4:c.slice(8,9)};
+      const c=lo.erp_code, bd=lo.level_breakdown||{}, is13=/^\d{13}$/.test(c);
+      e={erp:c,drawing:lo.drawing,name:lo.name,guige:lo.spec,spec:lo.spec,mat:lo.mat,
+         l5:is13?c.slice(9,13):(bd.level5||""),
+         zero:is13?c.slice(0,2):(bd.zero||""),level1:is13?c.slice(2,4):(bd.level1||""),
+         level2:is13?c.slice(4,6):(bd.level2||""),level3:is13?c.slice(6,8):(bd.level3||""),
+         level4:is13?c.slice(8,9):(bd.level4||"")};
     }
   }
   if(!e){ logMsg(`未找到编码 ${erpCode}，无法复用`); return; }
@@ -1003,7 +1067,7 @@ $("btnExportJson").onclick=()=>{
 };
 $("btnExportCsv").onclick=()=>{
   if(!log.length){ logMsg("台账为空，无可导出内容"); return; }
-  const head=["record_time","erp_code","drawing","category_path","action","name","spec","mat","action_reason"];
+  const head=["record_time","erp_code","code_type","drawing","category_path","action","name","spec","mat","action_reason"];
   const rows=log.map(o=>head.map(h=>`"${String(o[h]==null?"":o[h]).replace(/"/g,'""')}"`).join(","));
   download(`erp编码台账_${fileStamp()}.csv`,"\ufeff"+head.join(",")+"\n"+rows.join("\n"),"text/csv");
   logMsg(`已导出 ${log.length} 条 CSV`);
@@ -1068,6 +1132,15 @@ function batchAllocate(list){
   const next={};
   list.forEach(rec=>{
     if(!rec.valid||rec.pick==="skip"){ rec.final=null; return; }
+    if(rec.isDrawing){                       // ★ 图号即码：最终码 = 图号原样，不参与五级流水分配
+      if(rec.pick==="new"){ rec.final=rec.draw.trim(); rec.finalErr=""; }
+      else if(String(rec.pick).indexOf("dup:")===0){
+        const refLn=parseInt(String(rec.pick).slice(4),10);
+        const ref=list.find(x=>x.ln===refLn);
+        rec.final=(ref&&ref.final)||rec.draw.trim(); rec.finalErr=ref&&!ref.final?"所跟随的行未生成编码":"";
+      } else { rec.final=String(rec.pick); rec.finalErr=""; }
+      rec.l5=""; return;
+    }
     const pre=rec.pre;
     if(rec.pick==="new"){
       let l5="";
@@ -1145,6 +1218,21 @@ function batchAnalyze(text){
     rec.keyDraw=norm(rec.draw)+"|"+rec.keyFull;                  // 同批去重专用：图号也进 key，图号不同=不同物料
     const mem=branchMembers(rec.z,rec.l1,rec.l2,rec.l3,rec.l4);
     rec.memCount=mem.length;
+    rec.isDrawing=isRealDrawing(rec.draw);
+    rec.codeType=rec.isDrawing?"drawing":"category";
+    if(rec.isDrawing){                                            // ★ 图号即码：ERP 码 = 图号原样，不走分支流水
+      const dcode=rec.draw.trim();
+      const hitLog=(Array.isArray(log)?log:[]).find(o=>norm(o.drawing)===norm(dcode));
+      const hitEx=EXISTING.find(e=>norm(e.drawing)===norm(dcode));
+      if(hitLog){ rec.reuseErp=hitLog.erp_code; rec.reuseSrc="台账·图号一致"; rec.pick=hitLog.erp_code; }
+      else if(hitEx){ rec.reuseErp=hitEx.erp; rec.reuseSrc="现存·图号一致"; rec.pick=hitEx.erp; }
+      else{
+        const dup=out.find(x=>x.valid&&x.isDrawing&&norm(x.draw)===norm(dcode));
+        if(dup){ rec.reuseRef=dup.ln; rec.reuseSrc=`本批第 ${dup.ln} 行同图号`; rec.pick="dup:"+dup.ln; }
+        else rec.pick="new";
+      }
+      out.push(rec); continue;
+    }
     let target=null, src="", drawMissed=false;
     if(rec.draw){                                                // ① 图号（唯一且最精确）
       const hits=mem.filter(e=>norm(e.drawing)===norm(rec.draw));
@@ -1203,7 +1291,7 @@ function batchRender(){
       请点「导出判定结果(CSV)」查看具体行，或用项目里的 <b>运行诊断.cmd</b> 做结构体检。</div>`;
   }
   h+=`<div class="tbl-scroll" style="max-height:420px"><table><thead><tr>
-      <th>行</th><th>判定（可改）</th><th>建议 13 位码</th><th>分类路径</th><th>图号</th><th>品名</th><th>规格</th><th>材质牌号</th><th>依据 / 问题</th>
+      <th>行</th><th>判定（可改）</th><th>建议 ERP 码</th><th>分类路径</th><th>图号</th><th>品名</th><th>规格</th><th>材质牌号</th><th>依据 / 问题</th>
     </tr></thead><tbody>`;
   rows.forEach((r,i)=>{
     if(!r.valid){
@@ -1249,12 +1337,12 @@ function batchReadPicks(){
   });
 }
 function batchExportPreview(){
-  const head=["行号","判定","erp_code","category_path","drawing","name","spec","mat","说明"];
+  const head=["行号","判定","erp_code","code_type","category_path","drawing","name","spec","mat","说明"];
   const rows=batchRows.map(r=>{
-    if(!r.valid) return [`${r.ln}`,"无效","","","",r.name,r.spec,r.mat,r.errs.join("；")];
+    if(!r.valid) return [`${r.ln}`,"无效","","","","",r.name,r.spec,r.mat,r.errs.join("；")];
     const act=r.pick==="skip"?"跳过":(r.pick==="new"||String(r.pick).indexOf("dup:")===0?"新建":"复用");
-    const note=r.reuseSrc||(r.pick==="new"?(r.l5manual?"指定五级":"自动流水"):"");
-    return [`${r.ln}`,act,r.pick==="skip"?"":(r.final||""),r.path||"",r.draw,r.name,r.spec,r.mat,note];
+    const note=r.reuseSrc||(r.pick==="new"?(r.l5manual?"指定五级":(r.isDrawing?"图号即码":"自动流水")):"");
+    return [`${r.ln}`,act,r.pick==="skip"?"":(r.final||""),r.codeType||"category",r.path||"",r.draw,r.name,r.spec,r.mat,note];
   });
   download(`批量判定_${fileStamp()}.csv`,
     "\ufeff"+[head.join(",")].concat(rows.map(r=>r.map(c=>`"${String(c==null?"":c).replace(/"/g,'""')}"`).join(","))).join("\r\n"),
@@ -1267,14 +1355,18 @@ function batchWrite(){
   batchRows.forEach(r=>{
     if(!r.valid||r.pick==="skip") return;
     if(!r.final){ bad++; if(errs.length<10) errs.push(`第${r.ln}行：${r.finalErr||"未生成编码"}`); return; }
-    const s=splitErp(r.final);
+    const s=/^\d{13}$/.test(r.final)?splitErp(r.final):{z:r.z,l1:r.l1,l2:r.l2,l3:r.l3,l4:r.l4,l5:""};
     let action="新建",reason="";
     if(r.pick==="new"){ action="新建";
-      reason=`批量导入第${r.ln}行：差异维度[${nodeDiff([r.z,r.l1,r.l2,r.l3])||"—"}]下，本分支无完全一致物料（品名+规格+材质），五级${r.l5manual?"按指定取":"按自动流水取"} ${r.l5}`;
+      reason=r.isDrawing
+        ? `批量导入第${r.ln}行：检测到有效图号「${r.draw}」且库中不存在 → 按「图号即码」规则直接取图号作为 ERP 码（不参与五级流水）`
+        : `批量导入第${r.ln}行：差异维度[${nodeDiff([r.z,r.l1,r.l2,r.l3])||"—"}]下，本分支无完全一致物料（品名+规格+材质），五级${r.l5manual?"按指定取":"按自动流水取"} ${r.l5}`;
     }else if(String(r.pick).indexOf("dup:")===0){ action="复用";
       reason=`批量导入第${r.ln}行：与本批第${String(r.pick).slice(4)}行物料完全一致，沿用其编码`;
     }else{ action="复用";
-      reason=`批量导入第${r.ln}行：同分支（前缀 ${r.pre}）内已存在完全一致物料（${r.reuseSrc}），沿用既有编码`;
+      reason=r.isDrawing
+        ? `批量导入第${r.ln}行：图号「${r.draw}」在库中已存在（${r.reuseSrc||"图号一致"}），按「图号即码」规则沿用 ${r.final}`
+        : `批量导入第${r.ln}行：同分支（前缀 ${r.pre}）内已存在完全一致物料（${r.reuseSrc}），沿用既有编码`;
     }
     // 覆盖判定：按 ERP 主键或图号匹配已有台账条目，命中则就地更新描述字段（不改动 13 位码），
     // 未命中才新增。这样「改动后重新导入」会覆盖编码台账与（源表∪台账合并的）现存编码，而不是又添一条。
@@ -1293,7 +1385,7 @@ function batchWrite(){
       ovw++;
     }else{
       // 用 makeRecord 生成记录对象（不切页面）；批量写入应保持当前视图，勿调用 emit 跳转
-      const out=makeRecord(s.z,s.l1,s.l2,s.l3,s.l4,s.l5,action,reason,[],r.draw);
+      const out=makeRecord(s.z,s.l1,s.l2,s.l3,s.l4,s.l5,action,reason,[],r.draw,r.codeType||"category");
       log.push({...out,name:r.name,spec:r.spec,mat:r.mat,drawing:r.draw});
       add++;
     }
@@ -1318,7 +1410,7 @@ $("btnBatchTpl").onclick=()=>{
 };
 $("btnBatchImport").onclick=()=>$("fileBatch").click();
 // 版本标记：改动后请同步更新此串，方便一眼确认浏览器加载的是不是最新页面（防 file:// 缓存）
-const APP_VER="2026-10-12 11:20 · 受控账号+敏感操作密码升级（掩码弹窗/可配置/清空台账加锁）";
+const APP_VER="2026-10-13 00:20 · 双轨编码（图号即码 / 13位六层分类码）";
 if($("verTag")) $("verTag").textContent="v"+APP_VER;
 $("fileBatch").onchange=e=>{
   const f=e.target.files[0]; e.target.value=""; if(!f) return;
@@ -1449,7 +1541,9 @@ function allCodes(){
     .sort((a,b)=>String(b.record_time||"").localeCompare(String(a.record_time||"")));   // 最新优先
   arr.forEach(o=>{
     if(!o||!o.erp_code) return;
-    const s=splitErp(o.erp_code);
+    const s=(o.level_breakdown&&o.level_breakdown.zero)
+      ? {z:o.level_breakdown.zero,l1:o.level_breakdown.level1,l2:o.level_breakdown.level2,l3:o.level_breakdown.level3,l4:o.level_breakdown.level4,l5:o.level_breakdown.level5}
+      : splitErp(o.erp_code);
     take({src:"台账", erp:o.erp_code, drawing:o.drawing, name:o.name, guige:o.spec, mat:o.mat,
           zero:s.z,l1:s.l1,l2:s.l2,l3:s.l3,l4:s.l4,l5:s.l5, ref:o, edited:!!o.__ex});
   });
