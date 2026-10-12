@@ -1410,7 +1410,7 @@ $("btnBatchTpl").onclick=()=>{
 };
 $("btnBatchImport").onclick=()=>$("fileBatch").click();
 // 版本标记：改动后请同步更新此串，方便一眼确认浏览器加载的是不是最新页面（防 file:// 缓存）
-const APP_VER="2026-10-13 00:20 · 双轨编码（图号即码 / 13位六层分类码）";
+const APP_VER="2026-10-13 00:50 · 双轨编码 + 源表重置/重建加管理密码";
 if($("verTag")) $("verTag").textContent="v"+APP_VER;
 $("fileBatch").onchange=e=>{
   const f=e.target.files[0]; e.target.value=""; if(!f) return;
@@ -2178,15 +2178,17 @@ function bindLvlTableEvents(){
     }
     // 按源表重建：从 EXISTING 重新生成分支与流水（自定义的流水名/说明会被源表默认值覆盖同名码）
     if(e.target.id==="btnL5Rebuild"){
-      let cnt=0, grp=0;
-      EXISTING.forEach(e2=>{
-        const fk=e2.l1+e2.l2+e2.l3+e2.l4;
-        if(!CFG.lv.l5[fk]){ CFG.lv.l5[fk]={}; grp++; }
-        if(!CFG.lv.l5[fk][e2.l5]){ CFG.lv.l5[fk][e2.l5]={name:"流水"+e2.l5,note:""}; cnt++; }
+      requirePwd(()=>{
+        let cnt=0, grp=0;
+        EXISTING.forEach(e2=>{
+          const fk=e2.l1+e2.l2+e2.l3+e2.l4;
+          if(!CFG.lv.l5[fk]){ CFG.lv.l5[fk]={}; grp++; }
+          if(!CFG.lv.l5[fk][e2.l5]){ CFG.lv.l5[fk][e2.l5]={name:"流水"+e2.l5,note:""}; cnt++; }
+        });
+        if(cnt===0 && grp===0){ alert("源表流水已全部在列，无需重建"); return; }
+        if(!confirm(`按源表重建五级流水？\n\n将补入 ${grp} 个分支、${cnt} 条源表流水（已存在的同名码保留你改过的名称/说明）。\n确定？`)) return;
+        saveCFG(); refreshAll();
       });
-      if(cnt===0 && grp===0){ alert("源表流水已全部在列，无需重建"); return; }
-      if(!confirm(`按源表重建五级流水？\n\n将补入 ${grp} 个分支、${cnt} 条源表流水（已存在的同名码保留你改过的名称/说明）。\n确定？`)) return;
-      saveCFG(); refreshAll();
       return;
     }
   });
@@ -2573,8 +2575,10 @@ $("fileCfg").onchange=e=>{
   r.readAsText(f); e.target.value="";
 };
 $("btnResetCfg").onclick=()=>{
-  if(!confirm("将清空你的自定义，恢复到源表（data.js）默认分类？")) return;
-  CFG=seedCFG(); saveCFG(); refreshAll();
+  requirePwd(()=>{
+    if(!confirm("将清空你的自定义，恢复到源表（data.js）默认分类？")) return;
+    CFG=seedCFG(); saveCFG(); refreshAll();
+  });
 };
 $("inL5seed").onchange=()=>{
   let v=parseInt($("inL5seed").value,10); if(isNaN(v)||v<1)v=1;
