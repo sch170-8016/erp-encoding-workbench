@@ -959,9 +959,17 @@ function renderLog(){
     <td>${esc(o.name)}</td><td>${esc(o.spec)}</td><td>${esc(o.mat)}</td><td>${esc(o.action_reason)}</td>
     <td class="log-act"><button class="log-del" data-del="${i}">删除</button></td></tr>`).join("");
 }
+// 敏感操作（删除 / 改名）前的管理密码校验；密码固定为 8016
+function checkPwd(){
+  const p=prompt("敏感操作校验：请输入管理密码","");
+  if(p===null) return false;            // 用户点取消
+  if(p.trim()!=="8016"){ alert("密码错误，操作已取消。"); return false; }
+  return true;
+}
 $("logTable").addEventListener("click",e=>{
   const b=e.target.closest("button[data-del]"); if(!b) return;
   const i=+b.dataset.del, o=log[i]; if(!o) return;
+  if(!checkPwd()) return;
   if(!confirm(`从台账移除 ${o.erp_code}（${o.name||"—"} / ${o.category_path}）？`)) return;
   log.splice(i,1); saveLog(); renderLog(); if(DB.enabled&&DB.user) DB.deleteLedger(o.erp_code); logMsg(`已移除 ${o.erp_code}`);
 });
@@ -1984,6 +1992,7 @@ function bindLvlTableEvents(){
     }
     const delBtn=e.target.closest(".lv-del");
     if(delBtn){
+      if(!checkPwd()) return;
       const lvl=delBtn.dataset.lvl;
       if(lvl==="zero") delLvl("zero",[delBtn.dataset.code]);
       else if(lvl==="l4" && delBtn.dataset.code) delSrc(delBtn.dataset.code);   // 来源=全局删除
@@ -1993,6 +2002,7 @@ function bindLvlTableEvents(){
     // 「改名」按钮（零~四级通用）：下拉选中谁就改谁（弹窗输入新名称）
     const renBtn=e.target.closest(".lv-ren");
     if(renBtn){
+      if(!checkPwd()) return;
       const lvl=renBtn.dataset.lvl;
       if(lvl==="l4" && renBtn.dataset.code){ renSrc(renBtn.dataset.code); return; }   // 来源=全局改名
       let n=null, selId="", selVal="";
