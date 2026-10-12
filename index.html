@@ -189,6 +189,13 @@
   .modal{background:#fff;border-radius:12px;padding:22px 24px;width:440px;max-width:92vw;box-shadow:0 10px 40px rgba(0,0,0,.2)}
   .modal h3{margin:0 0 14px;font-size:16px}
   .modal .btnrow{margin-top:14px}
+  .modal.narrow{width:320px;max-width:92vw}
+  .modal input.pwd{width:100%;padding:9px 11px;margin:4px 0;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;font-size:14px;outline:none}
+  .modal input.pwd:focus{border-color:var(--brand)}
+  .modal .err{font-size:12.5px;color:var(--bad);min-height:16px;margin-bottom:4px}
+  .modal .btnrow button{width:100%;padding:9px;margin-top:8px;border-radius:8px;border:1px solid var(--line);font-size:14px;cursor:pointer}
+  .modal .btnrow .primary{background:var(--brand);color:#fff;border-color:var(--brand);font-weight:600}
+  .modal .btnrow .ghost{background:#fff;color:var(--sub)}
   .hint{font-size:12px;color:var(--sub);margin-top:4px}
   /* 完整分支表格弹窗 */
   .tbl-branch{width:100%;border-collapse:collapse;margin:4px 0}
@@ -959,24 +966,35 @@ function renderLog(){
     <td>${esc(o.name)}</td><td>${esc(o.spec)}</td><td>${esc(o.mat)}</td><td>${esc(o.action_reason)}</td>
     <td class="log-act"><button class="log-del" data-del="${i}">删除</button></td></tr>`).join("");
 }
-// 敏感操作（删除 / 改名）前的管理密码校验；密码固定为 8016
-function checkPwd(){
-  const p=prompt("敏感操作校验：请输入管理密码","");
-  if(p===null) return false;            // 用户点取消
-  if(p.trim()!=="8016"){ alert("密码错误，操作已取消。"); return false; }
-  return true;
+// 敏感操作（删除 / 改名 / 清空）前的管理密码校验；密码抽成可配置项
+const ADMIN_PWD = "8016";
+// 带掩码小弹窗：校验通过后执行 then()；取消 / 错误则中止
+function requirePwd(then){
+  const mask=$("pwdModal"), inp=$("pwdInput"), err=$("pwdErr");
+  if(!mask || !inp){ if(prompt("请输入管理密码","")===ADMIN_PWD){ then(); } return; } // 兜底（理论上弹窗必存在）
+  const okBtn=$("pwdOk"), cancelBtn=$("pwdCancel");
+  inp.value=""; err.textContent=""; mask.style.display="flex"; inp.focus();
+  const ok=()=>{ if(inp.value===ADMIN_PWD){ cleanup(); then(); } else { err.textContent="密码错误，操作已取消。"; inp.value=""; inp.focus(); } };
+  const cancel=()=>{ cleanup(); };
+  const cleanup=()=>{ mask.style.display="none"; okBtn.onclick=null; cancelBtn.onclick=null; mask.onclick=null; inp.onkeydown=null; };
+  okBtn.onclick=ok; cancelBtn.onclick=cancel;
+  mask.onclick=(ev)=>{ if(ev.target===mask) cancel(); };
+  inp.onkeydown=(ev)=>{ if(ev.key==="Enter"){ ev.preventDefault(); ok(); } else if(ev.key==="Escape"){ ev.preventDefault(); cancel(); } };
 }
 $("logTable").addEventListener("click",e=>{
   const b=e.target.closest("button[data-del]"); if(!b) return;
   const i=+b.dataset.del, o=log[i]; if(!o) return;
-  if(!checkPwd()) return;
-  if(!confirm(`从台账移除 ${o.erp_code}（${o.name||"—"} / ${o.category_path}）？`)) return;
-  log.splice(i,1); saveLog(); renderLog(); if(DB.enabled&&DB.user) DB.deleteLedger(o.erp_code); logMsg(`已移除 ${o.erp_code}`);
+  requirePwd(()=>{
+    if(!confirm(`从台账移除 ${o.erp_code}（${o.name||"—"} / ${o.category_path}）？`)) return;
+    log.splice(i,1); saveLog(); renderLog(); if(DB.enabled&&DB.user) DB.deleteLedger(o.erp_code); logMsg(`已移除 ${o.erp_code}`);
+  });
 });
 $("btnClearLog").onclick=()=>{
   if(!log.length){ logMsg("台账本来就是空的"); return; }
-  if(!confirm(`清空全部 ${log.length} 条台账？\n建议先点「导出 JSON / CSV」归档，此操作不可撤销。`)) return;
-  log=[]; saveLog(); renderLog(); if(DB.enabled&&DB.user) DB.deleteAllLedger(); logMsg("台账已清空");
+  requirePwd(()=>{
+    if(!confirm(`清空全部 ${log.length} 条台账？\n建议先点「导出 JSON / CSV」归档，此操作不可撤销。`)) return;
+    log=[]; saveLog(); renderLog(); if(DB.enabled&&DB.user) DB.deleteAllLedger(); logMsg("台账已清空");
+  });
 };
 $("btnExportJson").onclick=()=>{
   if(!log.length){ logMsg("台账为空，无可导出内容"); return; }
@@ -1300,7 +1318,7 @@ $("btnBatchTpl").onclick=()=>{
 };
 $("btnBatchImport").onclick=()=>$("fileBatch").click();
 // 版本标记：改动后请同步更新此串，方便一眼确认浏览器加载的是不是最新页面（防 file:// 缓存）
-const APP_VER="2026-10-11 23:40 · 云端共享（手机英文抬头恢复·紧凑单行）";
+const APP_VER="2026-10-12 11:20 · 受控账号+敏感操作密码升级（掩码弹窗/可配置/清空台账加锁）";
 if($("verTag")) $("verTag").textContent="v"+APP_VER;
 $("fileBatch").onchange=e=>{
   const f=e.target.files[0]; e.target.value=""; if(!f) return;
@@ -1992,43 +2010,45 @@ function bindLvlTableEvents(){
     }
     const delBtn=e.target.closest(".lv-del");
     if(delBtn){
-      if(!checkPwd()) return;
-      const lvl=delBtn.dataset.lvl;
-      if(lvl==="zero") delLvl("zero",[delBtn.dataset.code]);
-      else if(lvl==="l4" && delBtn.dataset.code) delSrc(delBtn.dataset.code);   // 来源=全局删除
-      else delLvl(lvl, delBtn.dataset.path.split("/"));
+      requirePwd(()=>{
+        const lvl=delBtn.dataset.lvl;
+        if(lvl==="zero") delLvl("zero",[delBtn.dataset.code]);
+        else if(lvl==="l4" && delBtn.dataset.code) delSrc(delBtn.dataset.code);   // 来源=全局删除
+        else delLvl(lvl, delBtn.dataset.path.split("/"));
+      });
       return;
     }
     // 「改名」按钮（零~四级通用）：下拉选中谁就改谁（弹窗输入新名称）
     const renBtn=e.target.closest(".lv-ren");
     if(renBtn){
-      if(!checkPwd()) return;
-      const lvl=renBtn.dataset.lvl;
-      if(lvl==="l4" && renBtn.dataset.code){ renSrc(renBtn.dataset.code); return; }   // 来源=全局改名
-      let n=null, selId="", selVal="";
-      if(lvl==="zero"){
-        const code=renBtn.dataset.code;
-        n=lvlDict("zero")[code]; selId="zSel"; selVal=code;
-      } else {
-        const pStr=renBtn.dataset.path;
-        const path=pStr.split("/");
-        n=nodeExists(path)?nodeByPath(path):null;
-        selId=lvl+"Sel"; selVal=pStr;
-      }
-      if(!n) return;
-      const ctxLabel = lvl==="zero"
-        ? `客户 ${selVal}`
-        : `${LVL_NAME[lvl]}「${pathLabel(selVal.split("/"))}」`;
-      const val=prompt(`修改${ctxLabel}的名称：`, n.name||"");
-      if(val===null) return;
-      const nm=val.trim();
-      if(!nm){ alert("名称不能为空"); return; }
-      if(nm===n.name) return;
-      n.name=nm;
-      saveCFG(); refreshAll();
-      // refreshAll 会重建下拉并回到第一项，这里选回刚改名的条目，避免"跳走"
-      const selEl=document.getElementById(selId);
-      if(selEl){ selEl.value=selVal; renderLvlSelBody(lvl); }
+      requirePwd(()=>{
+        const lvl=renBtn.dataset.lvl;
+        if(lvl==="l4" && renBtn.dataset.code){ renSrc(renBtn.dataset.code); return; }   // 来源=全局改名
+        let n=null, selId="", selVal="";
+        if(lvl==="zero"){
+          const code=renBtn.dataset.code;
+          n=lvlDict("zero")[code]; selId="zSel"; selVal=code;
+        } else {
+          const pStr=renBtn.dataset.path;
+          const path=pStr.split("/");
+          n=nodeExists(path)?nodeByPath(path):null;
+          selId=lvl+"Sel"; selVal=pStr;
+        }
+        if(!n) return;
+        const ctxLabel = lvl==="zero"
+          ? `客户 ${selVal}`
+          : `${LVL_NAME[lvl]}「${pathLabel(selVal.split("/"))}」`;
+        const val=prompt(`修改${ctxLabel}的名称：`, n.name||"");
+        if(val===null) return;
+        const nm=val.trim();
+        if(!nm){ alert("名称不能为空"); return; }
+        if(nm===n.name) return;
+        n.name=nm;
+        saveCFG(); refreshAll();
+        // refreshAll 会重建下拉并回到第一项，这里选回刚改名的条目，避免"跳走"
+        const selEl=document.getElementById(selId);
+        if(selEl){ selEl.value=selVal; renderLvlSelBody(lvl); }
+      });
       return;
     }
     // 五级表分组折叠切换（点组头展开/收起）
@@ -2055,9 +2075,11 @@ function bindLvlTableEvents(){
     if(e.target.id==="btnL5Clear"){
       const n=Object.keys(CFG.lv.l5).reduce((m,fk)=>m+Object.keys(CFG.lv.l5[fk]).length,0);
       if(n===0){ alert("五级流水已经是空的"); return; }
-      if(!confirm(`确认清空全部五级流水？\n\n共 ${Object.keys(CFG.lv.l5).length} 个分支、${n} 条流水，删除后不可恢复。\n（各级分类清单不受影响；之后可点「按源表重建」恢复源表流水）`)) return;
-      CFG.lv.l5={};
-      saveCFG(); refreshAll();
+      requirePwd(()=>{
+        if(!confirm(`确认清空全部五级流水？\n\n共 ${Object.keys(CFG.lv.l5).length} 个分支、${n} 条流水，删除后不可恢复。\n（各级分类清单不受影响；之后可点「按源表重建」恢复源表流水）`)) return;
+        CFG.lv.l5={};
+        saveCFG(); refreshAll();
+      });
       return;
     }
     // 按源表重建：从 EXISTING 重新生成分支与流水（自定义的流水名/说明会被源表默认值覆盖同名码）
@@ -2747,5 +2769,17 @@ async function startApp(){
 }
 startApp();
 </script>
+<div class="modal-mask" id="pwdModal">
+  <div class="modal narrow">
+    <h3>敏感操作校验</h3>
+    <div class="muted" style="font-size:12.5px;color:var(--sub);margin:-6px 0 8px">请输入管理密码以继续</div>
+    <input id="pwdInput" class="pwd" type="password" placeholder="管理密码" autocomplete="off">
+    <div class="err" id="pwdErr"></div>
+    <div class="btnrow">
+      <button id="pwdOk" class="primary">确认</button>
+      <button id="pwdCancel" class="ghost">取消</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
