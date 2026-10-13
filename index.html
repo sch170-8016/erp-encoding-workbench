@@ -323,8 +323,8 @@
       <svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M1 14h6M9 8h6M17 16h6"/></svg>分类管理</button>
     <button class="nav-item" data-panel="pan7" title="智能分类">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><path d="M5 5l3 3M16 16l3 3M19 5l-3 3M8 16l-3 3"/></svg>智能分类</button>
-    <button class="nav-item" data-panel="pan8" title="试样单转易助">
-      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>试样单→易助</button>
+    <button class="nav-item" data-panel="pan8" title="试样单转易助商品">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>试样单→易助商品</button>
     <div class="side-note">点左侧切换模块，一次只显示一个，页面不再拉长</div>
   </nav>
 
@@ -528,7 +528,7 @@
   </div>
 
   <div class="panel" id="pan8">
-    <h2>⑧ 试样单 → 易助 ERP</h2>
+    <h2>⑧ 试样单 → 易助商品基本信息</h2>
     <div class="note">上传试样单 CSV，系统自动补齐<b>材质牌号</b>、<b>零~四级分类</b>、<b>易助商品分类与来源</b>，规范去重后写入台账，并导出易助可直读的 <b>118 列转入文件</b>。<br>
       兼容 <b>UTF-8 与 GBK</b> 两种编码（Excel 另存的 CSV 多为 GBK，会自动识别）。默认表头：<code>序号,图号,品名,版本,单套用量,规格,用量,单位</code>，按<b>列名</b>识别，列序不同也能读。</div>
 
@@ -536,7 +536,7 @@
       <input type="file" id="fileSample" accept=".csv,.txt">
       <span style="width:1px;height:20px;background:var(--line);align-self:center"></span>
       <button class="ghost sm" id="btnErpMapEdit">商品分类映射表</button>
-      <button class="ghost sm" id="btnErpExp">导出易助 CSV</button>
+      <button class="ghost sm" id="btnErpExp">导出易助商品 CSV</button>
       <span class="muted" id="erpFileName"></span>
     </div>
 
@@ -1758,17 +1758,14 @@ $("btnBatchTpl").onclick=()=>{
 };
 $("btnBatchImport").onclick=()=>$("fileBatch").click();
 // 版本标记：改动后请同步更新此串，方便一眼确认浏览器加载的是不是最新页面（防 file:// 缓存）
-const APP_VER="2026-10-14 00:30 · 双轨编码 + ⑧试样单→易助118列转入";
+const APP_VER="2026-10-14 01:10 · 双轨编码 + ⑧试样单→易助商品 + 自查修复（下拉刷新/零级重算/空图号上报/编码识别统一）";
 if($("verTag")) $("verTag").textContent="v"+APP_VER;
 $("fileBatch").onchange=e=>{
   const f=e.target.files[0]; e.target.value=""; if(!f) return;
   const r=new FileReader();
   r.onload=()=>{
-    let text="";
-    try{ text=new TextDecoder("utf-8").decode(r.result); }catch(err){ text=String(r.result||""); }
-    if(text.indexOf("\ufffd")>=0){                   // UTF-8 解出乱码 → 退回 GBK（Excel 另存的 ANSI CSV）
-      try{ const g=new TextDecoder("gbk").decode(r.result); if(g.indexOf("\ufffd")<0) text=g; }catch(err){}
-    }
+    // 统一走 decodeCsvBuf（严格 UTF-8 解码失败才转 GBK），与面板⑧同一套判据，避免各模块解码结果不一致
+    const text=decodeCsvBuf(r.result).txt;
     let res;
     try{ res=batchAnalyze(text); }
     catch(err){ res={ok:false,msg:String((err&&err.message)||err)}; }
@@ -2990,11 +2987,8 @@ $("fileCsv").onchange=e=>{
   const f=e.target.files[0]; e.target.value=""; if(!f) return;
   const r=new FileReader();
   r.onload=()=>{
-    let text="";
-    try{ text=new TextDecoder("utf-8").decode(r.result); }catch(err){ text=String(r.result||""); }
-    if(text.indexOf("\ufffd")>=0){                     // UTF-8 解出乱码 → 试 GBK（Excel 另存的 ANSI CSV）
-      try{ const g=new TextDecoder("gbk").decode(r.result); if(g.indexOf("\ufffd")<0) text=g; }catch(err){}
-    }
+    // 统一走 decodeCsvBuf（严格 UTF-8 解码失败才转 GBK），与面板⑧同一套判据
+    const text=decodeCsvBuf(r.result).txt;
     const prune=!!($("chkCsvPrune")&&$("chkCsvPrune").checked);
     if(prune && !confirm("已勾选「同步删除」：CSV 中未列出的零~四级分类及其五级流水将被永久删除。\n建议先点「导出配置(JSON)」备份一份。\n确定继续？")) return;
     let res;
@@ -3290,6 +3284,9 @@ function refreshAll(){
   ["zero","l1","l2","l3","l4"].forEach(renderLvlSelBody);
   renderCls();
   renderEmptyTip();
+  // 面板⑧的「本批零级」下拉依赖零级客户表：云端同步/导入/增删客户后必须同步刷新，
+  // 否则会停留在脚本初始化时的旧快照（曾有 BUG：新增客户后面板⑧看不到）。
+  if(typeof fillErpZeroSel==="function") fillErpZeroSel();
 }
 // 源表为空（如规则变更后）时给出下一步指引，避免打开就是一片空白不知所措
 function renderEmptyTip(){
@@ -3329,7 +3326,7 @@ async function startApp(){
   finishStart();   // 未配置 Supabase：本地模式，与原行为完全一致
 }
 
-// ============ ⑧ 试样单 → 易助 ERP（118 列转入文件）============
+// ============ ⑧ 试样单 → 易助商品基本信息（118 列转入文件）============
 // 易助「商品基本信息 TPADEA」转入模板共 118 列，靠**列序号**识别：不能删列、不能改列序。
 // 其中只有 29 列真正有值（发货号按用户要求留空则 28 列），其余留空占位。前两行是表头：第1行字段码(DEAxxx)，第2行中文列名。
 // 注意：118 列里有 6 个重名的「预留字段」（idx 51/52/54/55/56/57），全是空占位、本模块不写，
@@ -3347,7 +3344,9 @@ const DEA_CONST=[["会计分类","001"],["预留(计算库存)=T","T"],["主要�
 const ERPMAP_DEFAULT={"03|0":"0303","03|1":"0308","04|1":"0601"};
 function erpMap(){ return (CFG && CFG.erpMap) ? CFG.erpMap : ERPMAP_DEFAULT; }
 function erpCat(l1,l4){ const m=erpMap(); const v=m[String(l1||"")+"|"+String(l4||"")]; return v?String(v).trim():""; }
-function erpSrc(l4){ return String(l4||"").trim()==="0" ? "M" : "P"; }
+// 四级为空＝连分类都没推断出来，此时不猜来源（与「商品分类绝不猜值」同一原则），
+// 留空交人工补，避免把一行默认值 P（采购件）静默写进 ERP 主数据。
+function erpSrc(l4){ const v=String(l4==null?"":l4).trim(); return v==="0"?"M":(v==="1"?"P":""); }
 // 材质牌号推断：取「规格」开头的英文字母+数字组合；以中文或数字开头则匹配不到，填 "/"
 function guessMat(spec){
   const s=String(spec==null?"":spec).trim();
@@ -3376,10 +3375,15 @@ function erpMsg(html,kind){
 }
 // GBK / UTF-8 自动识别：Excel 另存的 CSV 多为 GBK，按 UTF-8 解会产生 U+FFFD 替换字符
 function decodeCsvBuf(buf){
-  let txt="", enc="UTF-8";
-  try{ txt=new TextDecoder("utf-8").decode(buf); }catch(e){ txt=""; }
-  if(txt.indexOf("\ufffd")>=0){
-    try{ const g=new TextDecoder("gbk").decode(buf); if(g.indexOf("\ufffd")<0){ txt=g; enc="GBK"; } }catch(e){}
+  // 判据：能否被**严格** UTF-8 解码（fatal）。能 → UTF-8；不能 → 按 GBK（Excel 另存 CSV 的默认编码）。
+  // 比"解出来含替换字符就转 GBK"更可靠：GBK 几乎能把任意字节序列解成汉字而不产生 \ufffd，
+  // 旧写法只要文件里碰上一个真的替换字符，就会把合法 UTF-8 误判成 GBK、解成一堆乱码。
+  let txt=null, enc="UTF-8";
+  try{ txt=new TextDecoder("utf-8",{fatal:true}).decode(buf); }catch(e){ txt=null; }
+  if(txt===null){
+    enc="GBK";
+    try{ txt=new TextDecoder("gbk").decode(buf); }
+    catch(e){ try{ txt=new TextDecoder("utf-8").decode(buf); enc="UTF-8"; }catch(e2){ txt=""; } }
   }
   return {txt:String(txt||"").replace(/^\ufeff/,""), enc:enc};
 }
@@ -3399,22 +3403,25 @@ function fillErpZeroSel(){
   const want=keep||cur||"";
   el.value=Array.prototype.some.call(el.options,o=>o.value===want)?want:"";
 }
-let erpRows=[], erpDup=[];
-function erpAnalyze(text,enc,fileName){
-  const fnEl=$("erpFileName"); if(fnEl) fnEl.textContent=fileName?`已载入：${esc(fileName)}（识别为 ${esc(enc)}）`:"";
-  const rows=parseCSV(text).filter(r=>r&&r.some(c=>String(c==null?"":c).trim()!==""));
-  if(rows.length<2){ erpRows=[]; erpDup=[]; erpRender(); erpMsg("没有数据行（需表头 + 至少一行）","warn"); return; }
-  const head=rows[0].map(s=>String(s==null?"":s).trim());
-  const I={}; Object.keys(SAMPLE_ALIAS).forEach(k=>{ I[k]=pickIdx(head,SAMPLE_ALIAS[k]); });
-  if(I.draw<0){ erpRows=[]; erpDup=[]; erpRender(); erpMsg("缺少「图号」列，请确认试样单表头（需含 图号/品名/规格/单位 等列）","warn"); return; }
+// 当前生效的零级（客户）：面板⑧下拉优先，留「自动判断」则回落到⑦面板的全局零级
+function curErpZero(){
+  const el=$("selErpZero"); const v=el?String(el.value||"").trim():"";
+  return v||((typeof curAutoZero==="function")?curAutoZero():"");
+}
+// 按**当前**零级重算预览数据（不重新解析文件）。切换零级下拉、改完映射表都走这里，
+// 避免「下拉换了个客户、预览和写入台账却还是旧零级」。
+let erpRows=[], erpDup=[], erpSkip=0, erpSrcRows=null, erpSrcIdx=null;
+function erpBuild(){
+  erpRows=[]; erpDup=[]; erpSkip=0;
+  const rows=erpSrcRows, I=erpSrcIdx;
+  if(!rows||!I) return;
+  const zo=curErpZero();
   const cell=(r,k)=>{ const i=I[k]; return i<0?"":String(r[i]==null?"":r[i]).trim(); };
-  const zo=(function(){ const el=$("selErpZero"); const v=el?String(el.value||"").trim():""; return v||((typeof curAutoZero==="function")?curAutoZero():""); })();
-  erpRows=[]; erpDup=[];
   const seen={};
   for(let i=1;i<rows.length;i++){
     const r=rows[i], ln=i+1;
     const draw=cell(r,"draw");
-    if(!draw) continue;
+    if(!draw){ erpSkip++; continue; }   // 空图号不参与，但必须计数上报，否则这些行会"凭空消失"
     const key=norm(draw);
     if(seen[key]){ erpDup.push({ln:ln,draw:draw,first:seen[key]}); continue; }   // 图号重复 → ERP 建档只能有一条
     seen[key]=ln;
@@ -3434,20 +3441,37 @@ function erpAnalyze(text,enc,fileName){
       cat:cat,catMiss:!cat,src:erpSrc(z.l4),conf:conf,csrc:csrc,
       erp:isRealDrawing(draw)?draw:"",written:false});
   }
-  erpRender();
 }
+function erpAnalyze(text,enc,fileName){
+  const fnEl=$("erpFileName"); if(fnEl) fnEl.textContent=fileName?`已载入：${esc(fileName)}（识别为 ${esc(enc)}）`:"";
+  const rows=parseCSV(text).filter(r=>r&&r.some(c=>String(c==null?"":c).trim()!==""));
+  erpSrcRows=null; erpSrcIdx=null;
+  if(rows.length<2){ erpRows=[]; erpDup=[]; erpSkip=0; erpRender(); erpMsg("没有数据行（需表头 + 至少一行）","warn"); return; }
+  const head=rows[0].map(s=>String(s==null?"":s).trim());
+  const I={}; Object.keys(SAMPLE_ALIAS).forEach(k=>{ I[k]=pickIdx(head,SAMPLE_ALIAS[k]); });
+  if(I.draw<0){ erpRows=[]; erpDup=[]; erpSkip=0; erpRender(); erpMsg("缺少「图号」列，请确认试样单表头（需含 图号/品名/规格/单位 等列）","warn"); return; }
+  erpSrcRows=rows; erpSrcIdx=I;
+  erpBuild(); erpRender();
+}
+const ERP_PREVIEW_MAX=200;          // 预览行数上限：超出只提示不渲染（几百行试样单不至于拖垮页面），导出仍为全量
 function erpRender(){
   const el=$("erpArea"); if(!el) return;
-  if(!erpRows.length){ el.innerHTML=""; const st=$("erpStat"); if(st) st.innerHTML=""; return; }
+  const st=$("erpStat");
+  if(!erpRows.length){
+    el.innerHTML="";
+    if(st) st.innerHTML=erpSkip?`<b style="color:var(--warn)">全部 ${erpSkip} 行图号为空</b>，已跳过：本面板靠图号出码（图号即码），这些物料请到「①生成编码」走 13 位分类码。`:"";
+    return;
+  }
   const miss=erpRows.filter(r=>r.catMiss).length;
   const noDraw=erpRows.filter(r=>!r.erp).length;
   const bits=[`共 <b>${erpRows.length}</b> 条有效行`];
   if(erpDup.length) bits.push(`按图号去重剔除 <b>${erpDup.length}</b> 条`);
+  if(erpSkip) bits.push(`<b style="color:var(--warn)">图号为空跳过 ${erpSkip} 行</b>`);
   if(miss) bits.push(`<b style="color:var(--bad)">商品分类未命中 ${miss} 条</b>`);
   if(noDraw) bits.push(`<b style="color:var(--warn)">无有效图号 ${noDraw} 条（需到「①生成编码」走 13 位分类码）</b>`);
   $("erpStat").innerHTML=bits.join(" · ");
   let html=`<table class="lv-tbl"><thead><tr><th style="width:44px">行</th><th>图号 / ERP码</th><th>品名</th><th>规格</th><th style="width:60px">材质</th><th style="width:52px">单位</th><th style="width:48px">版本</th><th style="width:70px">商品分类</th><th style="width:44px">来源</th><th>分类依据</th></tr></thead><tbody>`;
-  erpRows.forEach(r=>{
+  erpRows.slice(0,ERP_PREVIEW_MAX).forEach(r=>{
     const bg=r.catMiss?"background:var(--danger-soft,#fff5f5)":(r.erp?"":"background:#fffbe6");
     const chip=(typeof catConfChip==="function")?catConfChip(r.conf):"";
     html+=`<tr style="${bg}">
@@ -3464,6 +3488,10 @@ function erpRender(){
     </tr>`;
   });
   html+="</tbody></table>";
+  if(erpRows.length>ERP_PREVIEW_MAX)
+    html+=`<div class="note" style="margin-top:6px">预览仅显示前 <b>${ERP_PREVIEW_MAX}</b> 行（共 ${erpRows.length} 行）。<b>导出与写入台账不受影响，仍为全部 ${erpRows.length} 行。</b></div>`;
+  if(erpSkip)
+    html+=`<div class="note" style="margin-top:6px">另有 <b>${erpSkip}</b> 行<b>图号为空</b>未列入：本面板按「图号即码」出码，空图号无法生成 ERP 码，这些物料请到「①生成编码」走 13 位分类码。</div>`;
   if(erpDup.length){
     html+=`<div class="note" style="margin-top:8px"><b>被剔除的重复图号</b>：${erpDup.map(d=>`第${d.ln}行（${esc(d.draw)}，同第${d.first}行）`).join("、")}</div>`;
   }
@@ -3510,6 +3538,12 @@ $("btnErpExp").onclick=()=>{
   const miss=todo.filter(r=>r.catMiss).length;
   if(miss && !confirm(`${miss} 行的「商品分类」未在映射表中，导出后该列会留空。\n留空行在易助里需手工补，建议先去「商品分类映射表」补规则。\n\n是否仍要继续导出？`)) return;
   const put=(a,nm,v)=>{ const i=DEA_IDX[nm]; if(i!==undefined) a[i]=String(v==null?"":v); };
+  // 导出前自检：任一目标列名在 118 列表头里找不到，说明列名写错。宁可中止报错，
+  // 也不能让值被静默丢在空列里——那会导出一个看着正常、实则缺列的坏文件。
+  const targets=["品号/图号1","品名","规格","材料牌号","版本号","库存单位","采购单位","销售单位","商品分类","主要来源"]
+    .concat(DEA_CONST.map(p=>p[0]));
+  const lost=targets.filter(n=>DEA_IDX[n]===undefined);
+  if(lost.length){ erpMsg(`导出已中止：以下列名在 118 列表头中找不到 → <b>${lost.map(esc).join("、")}</b>。请检查列名常量是否与易助模板一致。`, "warn"); return; }
   const lines=[DEA_COLS.map(c=>c.code), DEA_COLS.map(c=>c.name)];
   todo.forEach(r=>{
     const a=new Array(DEA_COLS.length).fill("");
@@ -3526,7 +3560,7 @@ $("btnErpExp").onclick=()=>{
     lines.push(a);
   });
   const csv=lines.map(line=>line.map(v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`).join(",")).join("\r\n");
-  download(`易助转入_${fileStamp()}.csv`,"\ufeff"+csv,"text/csv");
+  download(`易助商品转入_${fileStamp()}.csv`,"\ufeff"+csv,"text/csv");
   erpMsg(`已导出 <b>${todo.length}</b> 条 × <b>${DEA_COLS.length}</b> 列${miss?`（其中 ${miss} 条商品分类留空）`:""}`, "ok");
 };
 $("fileSample").onchange=e=>{
@@ -3599,7 +3633,8 @@ $("btnErpMapEdit").onclick=()=>{
   };
 };
 fillErpZeroSel();
-$("selErpZero").onchange=()=>{ if(erpRows.length) erpRender(); };
+// 切换零级后必须重算（而非仅重绘），否则预览与写入台账都会沿用旧零级
+$("selErpZero").onchange=()=>{ if(erpSrcRows){ erpBuild(); erpRender(); } };
 
 startApp();
 </script>
