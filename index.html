@@ -420,7 +420,7 @@
       <input type="file" id="fileRestore" accept=".json" style="display:none">
     </div>
     <div class="tbl-scroll"><table id="logTable"><thead>
-      <tr><th>#</th><th>记录时间</th><th>ERP 码</th><th>图号</th><th>路径</th><th>动作</th><th>品名</th><th>规格</th><th>材料牌号</th><th>依据</th><th>操作</th></tr>
+      <tr><th>#</th><th>记录时间</th><th>ERP 码</th><th>图号</th><th>路径</th><th>动作</th><th>品名</th><th>规格</th><th>材料牌号</th><th style="width:52px">版本</th><th style="width:52px">单位</th><th>依据</th><th>操作</th></tr>
     </thead><tbody></tbody></table></div>
     <div class="note">已开启云端共享：台账存 Supabase，<b>团队所有登录成员看到同一份、实时互见</b>（右上角显示同步状态）。本地浏览器仍留一份缓存作兜底。只有「单行删除 / 清空台账」才会移除；「全量备份」可把台账+配置导出 JSON 归档（Free 层无自动备份，建议定期备份）。不回写源 xlsx。</div>
   </div>
@@ -555,7 +555,7 @@
             <tr><td>单套用量</td><td class="muted">否</td><td>数字</td><td>2</td><td><b>不导出</b>：属 BOM 表，ERP 商品信息表无此列</td></tr>
             <tr><td><b>规格</b></td><td><b>是</b></td><td>规格描述</td><td>Q235A t=3.0</td><td><b>材质牌号由此推断</b>：取开头的英文字母+数字，故请以牌号开头</td></tr>
             <tr><td>用量</td><td class="muted">否</td><td>数字</td><td>2</td><td>同「单套用量」，<b>不导出</b></td></tr>
-            <tr><td><b>单位</b></td><td><b>是</b></td><td>计量单位</td><td>PCS / kg</td><td>导出时自动转大写（kg → KG）</td></tr>
+            <tr><td><b>单位</b></td><td>建议填</td><td>计量单位</td><td>KG / PCS</td><td><b>规格是金属材料 → KG</b>，其余 → <code>PCS</code>；留空则按同规则自动补。导出时统一转大写（kg → KG）</td></tr>
           </tbody>
         </table>
       </div>
@@ -585,7 +585,10 @@
       ③ <b>商品分类</b>：由「一级 + 四级」组合查映射表得出；<b>查不到的一律留空并在预览里标红</b>，绝不猜值。<br>
       ④ <b>主要来源</b>：四级 <code>0-自制件</code> → <code>M</code>，<code>1-采购件</code> → <code>P</code>。<br>
       ⑤ <b>物料发货号</b>：按你的要求<b>全部留空</b>。<br>
-      ⑥ 导出的 <code>用量 / 单套用量</code> <b>不会</b>进入 ERP 商品信息表（那里没有对应列，用量属于 BOM 表）。
+      ⑥ 导出的 <code>用量 / 单套用量</code> <b>不会</b>进入 ERP 商品信息表（那里没有对应列，用量属于 BOM 表）。<br>
+      ⑦ <b>单位</b>：材质属<b>金属</b>（Q235 / SUS304 / Q345B / SCM435 / 镀锌板 Z80 / 铝 6061 / 黄铜 H62 等）→ <code>KG</code>，其余 → <code>PCS</code>。
+        <b>原文没填单位</b>的按此规则自动补，预览里带「<span class="muted">补</span>」标记；
+        <b>已填的保留原值不擅自改</b>，若金属行填了非 KG 会标黄「建议KG」提示，由你定夺。
     </div>
   </div>
 
@@ -1133,13 +1136,15 @@ function renderLog(){
   const cnt=$("logCount");
   if(cnt){ cnt.innerHTML=`共 <b>${log.length}</b> 条`; cnt.className="pill"+(log.length?" ok":""); }
   if(!log.length){
-    tb.innerHTML=`<tr><td colspan="11" class="muted" style="text-align:center;padding:18px">暂无记录 —— 单条出码：在「② 结果与自检」点「记录到台账（③ · 仅单条）」；批量导入：在「① 生成编码」批量预览区点「写入台账（N 行）」。</td></tr>`;
+    tb.innerHTML=`<tr><td colspan="13" class="muted" style="text-align:center;padding:18px">暂无记录 —— 单条出码：在「② 结果与自检」点「记录到台账（③ · 仅单条）」；批量导入：在「① 生成编码」批量预览区点「写入台账（N 行）」。</td></tr>`;
     return;
   }
   tb.innerHTML=log.map((o,i)=>`<tr data-i="${i}"><td>${i+1}</td><td class="muted">${esc(o.record_time||"—")}</td>
     <td class="erp">${esc(o.erp_code)}</td><td>${esc(o.drawing||"—")}</td><td>${esc(o.category_path)}</td>
     <td><span class="tag ${o.action==='新建'?'new':'reuse'}">${esc(o.action)}</span></td>
-    <td>${esc(o.name)}</td><td>${esc(o.spec)}</td><td>${esc(o.mat)}</td><td>${esc(o.action_reason)}</td>
+    <td>${esc(o.name)}</td><td>${esc(o.spec)}</td><td>${esc(o.mat)}</td>
+    <td>${esc(o.ver||"—")}</td><td>${esc(String(o.unit||"—").toUpperCase())}</td>
+    <td>${esc(o.action_reason)}</td>
     <td class="log-act"><button class="log-del" data-del="${i}">删除</button></td></tr>`).join("");
 }
 // 敏感操作（删除 / 改名 / 清空）前的管理密码校验；密码抽成可配置项
@@ -1179,7 +1184,7 @@ $("btnExportJson").onclick=()=>{
 };
 $("btnExportCsv").onclick=()=>{
   if(!log.length){ logMsg("台账为空，无可导出内容"); return; }
-  const head=["record_time","erp_code","code_type","drawing","category_path","action","name","spec","mat","action_reason"];
+  const head=["record_time","erp_code","code_type","drawing","category_path","action","name","spec","mat","ver","unit","action_reason"];
   const rows=log.map(o=>head.map(h=>`"${String(o[h]==null?"":o[h]).replace(/"/g,'""')}"`).join(","));
   download(`erp编码台账_${fileStamp()}.csv`,"\ufeff"+head.join(",")+"\n"+rows.join("\n"),"text/csv");
   logMsg(`已导出 ${log.length} 条 CSV`);
@@ -1783,7 +1788,7 @@ $("btnBatchTpl").onclick=()=>{
 };
 $("btnBatchImport").onclick=()=>$("fileBatch").click();
 // 版本标记：改动后请同步更新此串，方便一眼确认浏览器加载的是不是最新页面（防 file:// 缓存）
-const APP_VER="2026-10-14 01:25 · 双轨编码 + ⑧试样单→ERP商品信息 + 试样单模板下载 + 写入台账加锁";
+const APP_VER="2026-10-14 01:55 · 双轨编码 + ⑧试样单→ERP商品信息 + 金属材料单位 KG 规则";
 if($("verTag")) $("verTag").textContent="v"+APP_VER;
 $("fileBatch").onchange=e=>{
   const f=e.target.files[0]; e.target.value=""; if(!f) return;
@@ -3378,6 +3383,53 @@ function guessMat(spec){
   const m=s.match(/^[A-Za-z][A-Za-z0-9]*/);
   return m ? m[0] : "/";
 }
+// ---------- 金属材料识别 → 计量单位 KG ----------
+// 口径：规格里的材质牌号属于金属材料（钢/不锈钢/合金钢/铸铁/铝/铜等）→ 按重量计量，单位 KG；其余按件 PCS。
+// 判定看「材质牌号」（列缺失时取上面 guessMat 从规格推断出的牌号），大小写与空格不敏感。
+// 要补新的金属材质，往 METAL_PREFIX 加前缀、或往 METAL_EXACT 加完整牌号即可（短纯数字牌号请走 METAL_EXACT，避免误伤）。
+const METAL_PREFIX=[
+  // 碳素/低合金结构钢
+  "q195","q215","q235","q275","q345","q390","q420","q460","ss400","ss490","sm400","sm490",
+  "spcc","spcd","spce","sphc","sphd","saph","secc","secd","sece","sgcc","sgcd","sghc",
+  "dx51d","dx52d","dx53d","dc01","dc03","dc04","dc05","dc06","st12","st13","st14","st37","st52",
+  "s235jr","s275jr","s355jr","a36","a283","a3钢",
+  // 镀层板卷（锌层代号）——真实数据出现过 Z40/Z80，故 Z+数字整系列纳入
+  "z25","z40","z60","z80","z90","z100","z120","z180","z200","z275","z350","zinc","galv",
+  // 不锈钢
+  "sus201","sus202","sus301","sus303","sus304","sus316","sus321","sus410","sus420","sus430",
+  "ss304","ss316","1cr18ni9","0cr18ni9","1cr13","2cr13","3cr13","316l","304l",
+  // 合金结构钢 / 工具钢 / 铸钢铸铁
+  "scm435","scm440","sncm439","suj2","skd11","skd61","s45c","s50c","s35c","s25c","s20c","s15c",
+  "40cr","35crmo","42crmo","20crmnti","20crmo","20cr","40mn","65mn","60si2mn","gcr15",
+  "qt400","qt450","qt500","qt600","qt700","ht150","ht200","ht250","ht300","zg",
+  // 铝及铝合金
+  "6061","6063","5052","5083","5754","2024","7075","ly12","2a12","adc10","adc12","zl102","zl104","al",
+  // 铜及铜合金
+  "h59","h62","h65","h68","hpb59","hpb63","c1100","c2680","c3604","cu",
+  // 钛 / 镍
+  "tc4","ti6al4v","n6","inconel"
+];
+const METAL_EXACT=["45","50","35","20","a3","201","202","301","304","316","321","410","420","430","t2","tu1"];
+// 正则兜底：清单式列举会漏（真实数据里 Z40 就漏过一次），这里用规则兜住「字母+数字」的系列牌号，
+// 避免每来一个新镀层代号就要改代码。注意只对尚无歧义的系列开放，宁可漏判也不要误判成金属。
+const METAL_REGEX=[/^z\d+$/, /^zp\d+$/, /^gcr\d+$/, /^cr\d+$/, /^hdg\d*$/, /^sus\d+$/, /^q\d{3}$/];
+function isMetalGrade(mat){
+  const s=norm(mat);
+  if(!s || s==="/") return false;
+  if(METAL_EXACT.indexOf(s)>=0) return true;
+  for(let i=0;i<METAL_PREFIX.length;i++){ if(s.indexOf(METAL_PREFIX[i])===0) return true; }
+  for(let i=0;i<METAL_REGEX.length;i++){ if(METAL_REGEX[i].test(s)) return true; }
+  return false;
+}
+// 单位规则：金属 → KG，其余 → PCS。返回 {unit, tag}
+//   tag="keep" 原文已填，原样保留；tag="auto" 原文留空，按规则自动补；tag="warn" 金属却填了非 KG，保留原值但预览标黄提示
+function resolveUnit(unitRaw,mat){
+  const raw=String(unitRaw==null?"":unitRaw).trim();
+  const metal=isMetalGrade(mat);
+  if(!raw) return {unit:metal?"KG":"PCS", tag:"auto", metal:metal};
+  if(metal && raw.toUpperCase()!=="KG") return {unit:raw, tag:"warn", metal:metal};
+  return {unit:raw, tag:"keep", metal:metal};
+}
 const SAMPLE_ALIAS={
   draw:["图号","件号","零件号","图号 / drawing no.","drawing no.","drawing"],
   name:["品名","名称","物料名称","品名规格"],
@@ -3452,7 +3504,9 @@ function erpBuild(){
     seen[key]=ln;
     const name=cell(r,"name"), spec=cell(r,"spec");
     let mat=cell(r,"mat"); if(!mat) mat=guessMat(spec);
-    const unit=cell(r,"unit");
+    // 单位：金属材料 → KG，其余 → PCS；原文已填则保留原值（金属填非 KG 只提示不改）
+    const uInfo=resolveUnit(cell(r,"unit"),mat);
+    const unit=uInfo.unit;
     let ver=cell(r,"ver"); if(!ver) ver="0.0";
     let cls={out:{},conf:{}}, csrc="";
     try{ cls=autoClassify({draw:draw,name:name,spec:spec,mat:mat}, zo); csrc=cls.src||""; }catch(e){ csrc="分类推断失败"; }
@@ -3461,6 +3515,7 @@ function erpBuild(){
     const conf=(typeof autoLevelConf==="function")?autoLevelConf(cls.conf||{}):"NONE";
     const cat=erpCat(z.l1,z.l4);
     erpRows.push({ln:ln,draw:draw,name:name,spec:spec,mat:mat,ver:ver,unit:unit,
+      unitTag:uInfo.tag, metal:uInfo.metal,
       uqty:cell(r,"uqty"),qty:cell(r,"qty"),z:z,
       zpath:[z.z,z.l1,z.l2,z.l3,z.l4].filter(x=>x!=="").join("/"),
       cat:cat,catMiss:!cat,src:erpSrc(z.l4),conf:conf,csrc:csrc,
@@ -3479,6 +3534,15 @@ function erpAnalyze(text,enc,fileName){
   erpBuild(); erpRender();
 }
 const ERP_PREVIEW_MAX=200;          // 预览行数上限：超出只提示不渲染（几百行试样单不至于拖垮页面），导出仍为全量
+// 单位列的显示：原文已填直接显示；自动补的带「补」标记；金属却填非 KG 的标黄提示（保留原值不擅自改）
+function unitCellHtml(r){
+  const u=esc(String(r.unit||"").toUpperCase());
+  if(r.unitTag==="auto")
+    return `${u}<span class="muted" style="font-size:11px" title="原文未填单位，按材质「${esc(r.mat)}」为${r.metal?"金属":"非金属"}自动补 ${u}"> 补</span>`;
+  if(r.unitTag==="warn")
+    return `<span style="color:var(--warn)" title="材质「${esc(r.mat)}」属金属，按规则建议 KG；此处保留你填的 ${u}，确认无误可忽略"><b>${u}</b><span style="font-size:11px"> 建议KG</span></span>`;
+  return u;
+}
 function erpRender(){
   const el=$("erpArea"); if(!el) return;
   const st=$("erpStat");
@@ -3494,8 +3558,12 @@ function erpRender(){
   if(erpSkip) bits.push(`<b style="color:var(--warn)">图号为空跳过 ${erpSkip} 行</b>`);
   if(miss) bits.push(`<b style="color:var(--bad)">商品分类未命中 ${miss} 条</b>`);
   if(noDraw) bits.push(`<b style="color:var(--warn)">无有效图号 ${noDraw} 条（需到「①生成编码」走 13 位分类码）</b>`);
+  const uAuto=erpRows.filter(r=>r.unitTag==="auto").length;
+  const uWarn=erpRows.filter(r=>r.unitTag==="warn").length;
+  if(uAuto) bits.push(`单位自动补 <b>${uAuto}</b> 条（金属→KG / 其余→PCS）`);
+  if(uWarn) bits.push(`<b style="color:var(--warn)">金属但单位非 KG ${uWarn} 条</b>`);
   $("erpStat").innerHTML=bits.join(" · ");
-  let html=`<table class="lv-tbl"><thead><tr><th style="width:44px">行</th><th>图号 / ERP码</th><th>品名</th><th>规格</th><th style="width:60px">材质</th><th style="width:52px">单位</th><th style="width:48px">版本</th><th style="width:70px">商品分类</th><th style="width:44px">来源</th><th>分类依据</th></tr></thead><tbody>`;
+  let html=`<table class="lv-tbl"><thead><tr><th style="width:44px">行</th><th>图号 / ERP码</th><th>品名</th><th>规格</th><th style="width:60px">材质</th><th style="width:78px">单位</th><th style="width:48px">版本</th><th style="width:70px">商品分类</th><th style="width:44px">来源</th><th>分类依据</th></tr></thead><tbody>`;
   erpRows.slice(0,ERP_PREVIEW_MAX).forEach(r=>{
     const bg=r.catMiss?"background:var(--danger-soft,#fff5f5)":(r.erp?"":"background:#fffbe6");
     const chip=(typeof catConfChip==="function")?catConfChip(r.conf):"";
@@ -3505,7 +3573,7 @@ function erpRender(){
       <td>${esc(r.name)}</td>
       <td>${esc(r.spec)}</td>
       <td>${esc(r.mat)}</td>
-      <td>${esc(String(r.unit).toUpperCase())}</td>
+      <td>${unitCellHtml(r)}</td>
       <td>${esc(r.ver)}</td>
       <td>${r.cat?esc(r.cat):`<b style="color:var(--bad)">未命中</b>`}</td>
       <td>${esc(r.src)}</td>
@@ -3581,11 +3649,12 @@ function erpWriteDo(todo){
 //  行1 标准件     行2 字母图号     行3 规格以牌号开头     行4 用量不为 1     行5 图号留空（走①生成编码的 13 位分类码，不进本面板导出）
 //  行5 故意留空图号（演示无图号物料：不进本面板导出，需去「①生成编码」走 13 位分类码）
 const SMPL_HEAD=["序号","图号","品名","版本","单套用量","规格","用量","单位"];
+// 前 4 行规格为金属材料 → 单位 KG；末行 PE 膜为非金属 → PCS，两相对照便于理解规则
 const SMPL_ROWS=[
-  ["1","2701801507","左安装板","1.0","2","Q235A t=3.0","2","PCS"],
-  ["2","FLX1002766","输送链护罩","1.0","1","SUS304 T1.5","1","PCS"],
-  ["3","3925673","传动轴头","1.0","1","Q345B φ20×180","1","PCS"],
-  ["4","5115941","六角螺栓 M8×25","1.0","4","SCM435 发黑","4","PCS"],
+  ["1","2701801507","左安装板","1.0","2","Q235A t=3.0","2","KG"],
+  ["2","FLX1002766","输送链护罩","1.0","1","SUS304 T1.5","1","KG"],
+  ["3","3925673","传动轴头","1.0","1","Q345B φ20×180","1","KG"],
+  ["4","5115941","六角螺栓 M8×25","1.0","4","SCM435 发黑","4","KG"],
   ["5","","PE 包装袋","1.0","1","PE膜 170×120×0.18","1","PCS"]
 ];
 $("btnErpTpl").onclick=()=>{
@@ -3593,7 +3662,7 @@ $("btnErpTpl").onclick=()=>{
   const csv=lines.map(line=>line.map(v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`).join(",")).join("\r\n");
   // UTF-8 BOM + CRLF：Excel 双击打开不乱码，也能被 decodeCsvBuf 正确判为 UTF-8
   download(`试样单模板_${fileStamp()}.csv`,"\ufeff"+csv,"text/csv");
-  erpMsg("已下载模板：请把 5 行<b>样例</b>替换成自己的数据（<b>保留表头行</b>），存盘后在本面板上传即可。注意最后一行故意<b>留空图号</b>，演示无图号物料的处理。","ok");
+  erpMsg("已下载模板：请把 5 行<b>样例</b>替换成自己的数据（<b>保留表头行</b>），存盘后在本面板上传即可。样例说明：<b>前 4 行规格是金属材料 → 单位填 KG</b>，第 5 行 PE 膜是非金属 → 填 PCS（留作对照）；最后一行故意<b>留空图号</b>，演示无图号物料的处理（这类需去「①生成编码」走 13 位分类码）。","ok");
 };
 $("btnErpExp").onclick=()=>{
   const todo=erpRows.filter(r=>r.erp);
