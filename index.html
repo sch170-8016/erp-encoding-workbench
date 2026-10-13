@@ -43,7 +43,14 @@
   .hd-badge{font-size:11px;font-weight:700;letter-spacing:1px;padding:3px 11px;border-radius:20px;white-space:nowrap;
     background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.32);color:#fff}
   .hd-badge.gold{background:rgba(42,208,255,.18);border-color:rgba(142,240,255,.6);color:#b9ecff}
-  @media (max-width:840px){
+    .cf-map{background:#eaf7ee;color:#0a7a3c}
+  .cf-high{background:#eaf2ff;color:#1a5fb4}
+  .cf-mid,.cf-low{background:#fff6e5;color:#96590a}
+  .cf-none{background:#ffeceb;color:var(--bad)}
+  .pill.cf-user{background:#e8f0fe;color:#1a56c4}
+  .cf-def{background:#fff8e1;color:#8a6100}
+  .pill.cf-map,.pill.cf-high,.pill.cf-mid,.pill.cf-low,.pill.cf-none,.pill.cf-def{font-size:11px;padding:1px 7px;border-radius:9px;font-weight:600;margin-left:4px}
+@media (max-width:840px){
     .hd-inner{flex-wrap:wrap;gap:12px;align-items:center}
     .hd-right{margin-left:0;flex-direction:row;align-items:center;flex-wrap:wrap;flex:1 1 100%}
     /* 手机端精简抬头：KINTO 图标(logo)紧贴中文抬头左侧"前面"；英文全称恢复为紧凑小字单行（不再隐藏），副标题长串仍隐藏以缩减篇幅 */
@@ -314,6 +321,10 @@
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>现存编码</button>
     <button class="nav-item" data-panel="pan6" title="分类管理">
       <svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M1 14h6M9 8h6M17 16h6"/></svg>分类管理</button>
+    <button class="nav-item" data-panel="pan7" title="智能分类">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><path d="M5 5l3 3M16 16l3 3M19 5l-3 3M8 16l-3 3"/></svg>智能分类</button>
+    <button class="nav-item" data-panel="pan8" title="试样单转易助">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>试样单→易助</button>
     <div class="side-note">点左侧切换模块，一次只显示一个，页面不再拉长</div>
   </nav>
 
@@ -365,12 +376,16 @@
     <div class="note" style="margin-top:6px"><b>品名</b>、<b>材质牌号</b>为必填（一物一码的判定要素）。<b>图号规则</b>：填了<b>有效图号</b>（不含中文，如 <code>5115941</code> / <code>3925673</code> / <code>FLX1002766</code>）→ <b>图号直接作为 ERP 码</b>，不再生成 13 位分类码（分类路径仍要选，仅作属性记录，不参与编码）；图号<b>含中文</b>（如 标签202 / 纸板300x250）或留空 → 按「品名 + 规格 + 材质」判定，生成 13 位六层分类码。（口径：图号唯一，图号不同即不同物料）</div>
     <div class="btnrow">
       <button id="btnSuggest">生成建议（含分支复用核查）</button>
+      <button class="ghost" id="btnAutoCat">自动分类</button>
       <button class="ghost" id="btnReset">清空</button>
     </div>
     <div id="suggestArea"></div>
     <div class="btnrow" style="margin-top:12px;border-top:1px dashed var(--line);padding-top:12px">
       <button class="ghost" id="btnBatchImport">批量录入（CSV 导入）</button>
       <button class="ghost sm" id="btnBatchTpl">下载批量模板</button>
+      <span style="width:1px;height:20px;background:var(--line);align-self:center"></span>
+      <span class="muted" style="align-self:center">本次零级</span>
+      <select id="selBatchZero" style="flex:0 0 auto;min-width:160px"></select>
       <span class="muted">整表一次判定：自动查重复用 / 同批连号分配五级，先看预览再写入台账</span>
       <div class="note" style="margin:6px 0 0"><b>图号规则同单条</b>：填了<b>有效图号</b>（不含中文）→ <b>图号直接作为 ERP 码</b>，此时<b>「五级码」列会被忽略</b>，零~四级仍要填（仅作属性记录，不参与编码）；图号<b>含中文</b>或留空 → 按「品名+规格+材质」判定并生成 13 位六层分类码。<b>模板列结构不变（14 列）</b>。</div>
       <span id="verTag" class="muted" style="margin-left:auto;font-size:11px;opacity:.7"></span>
@@ -470,6 +485,82 @@
         </span>
         <input type="text" id="inL5seed" value="1" style="max-width:80px;width:80px">
       </div>
+    </div>
+  </div>
+
+  <div class="panel" id="pan7">
+    <h2>⑦ 智能分类（映射库 + 规则引擎）</h2>
+    <div class="note">批量导入 CSV 时，<b>分类列留空的行会自动推断</b>。判定顺序：<b>① 映射库</b>（图号 → 品名+材质 → 品名，组内分类完全一致才采信）→ <b>② 规则表</b>（按层级顺序匹配关键词）→ <b>③ 默认兜底并标红</b>。预览里每行会标出来源与置信度，黄/红行需人工确认。</div>
+    <div class="btnrow" style="margin:10px 0 8px">
+      <button class="ghost sm" id="btnMapImport">导入映射库(CSV)</button>
+      <button class="ghost sm" id="btnMapExport">导出映射库(CSV)</button>
+      <button class="ghost sm" id="btnMapClear">清空映射库</button>
+      <span style="width:1px;height:20px;background:var(--line);align-self:center"></span>
+      <button class="ghost sm" id="btnRuleImport">导入规则(CSV)</button>
+      <button class="ghost sm" id="btnRuleExport">导出规则(CSV)</button>
+      <button class="ghost sm" id="btnRuleReset">恢复默认规则</button>
+      <span style="width:1px;height:20px;background:var(--line);align-self:center"></span>
+      <button class="ghost sm" id="btnTreeFill">按库补全分类树</button>
+      <input type="file" id="fileMap" accept=".csv,.txt" style="display:none">
+      <input type="file" id="fileRule" accept=".csv,.txt" style="display:none">
+    </div>
+    <div class="row" style="margin:0 0 10px">
+      <div style="flex:0 0 250px;min-width:250px">
+        <label title="自动分类时零级取哪个客户。选定后优先级高于映射库与规则">自动分类的默认零级（客户）</label>
+        <select id="selAutoZero"></select>
+      </div>
+      <div style="flex:1;align-self:flex-end" class="muted">选定后，<b>自动分类结果的零级一律取这个值</b>（优先级高于映射库与规则）；选「自动判断」则按 映射库 → 规则 推断。</div>
+    </div>
+    <div id="catMsg"></div>
+    <div id="catStat" class="note"></div>
+    <div class="row" style="margin-top:14px;border-top:1px dashed var(--line);padding-top:12px">
+      <div><label>图号</label><input type="text" id="tcDraw" placeholder="选填"></div>
+      <div><label>品名</label><input type="text" id="tcName" placeholder="如：内六角沉头螺钉"></div>
+      <div><label>规格</label><input type="text" id="tcSpec" placeholder="如：ISO 10642 M8X25"></div>
+      <div><label>材质牌号</label><input type="text" id="tcMat" placeholder="如：标准件采购 / SUS303"></div>
+    </div>
+    <div class="btnrow"><button class="ghost" id="btnTryCat">试算分类</button><span class="muted">不写入任何数据，只看推断结果与命中依据</span></div>
+    <div id="tryCatOut"></div>
+    <div class="note" style="margin-top:10px">
+      <b>映射库 CSV 列</b>：<code>图号,品名,规格,材质牌号,零级,一级,二级,三级,四级</code>（分类列写「码-名称」，如 <code>01-富耐连</code>；也兼容批量模板的 14 列「零级码/零级名称」写法）。<br>
+      <b>规则 CSV 列</b>：<code>层级,序号,规则名,前提层,前提值,字段,方式,关键词,赋值码,赋值名,置信度,说明</code>，层级填 零级/一级/二级/三级/四级；字段填 DRAW/NAME/SPEC/MAT/ANY；方式填 IN(包含任一)/EQ(完全相等)/RE(正则)；同一层级按行序匹配，<b>命中第一条即停</b>。
+    </div>
+  </div>
+
+  <div class="panel" id="pan8">
+    <h2>⑧ 试样单 → 易助 ERP</h2>
+    <div class="note">上传试样单 CSV，系统自动补齐<b>材质牌号</b>、<b>零~四级分类</b>、<b>易助商品分类与来源</b>，规范去重后写入台账，并导出易助可直读的 <b>118 列转入文件</b>。<br>
+      兼容 <b>UTF-8 与 GBK</b> 两种编码（Excel 另存的 CSV 多为 GBK，会自动识别）。默认表头：<code>序号,图号,品名,版本,单套用量,规格,用量,单位</code>，按<b>列名</b>识别，列序不同也能读。</div>
+
+    <div class="btnrow" style="margin:10px 0 8px">
+      <input type="file" id="fileSample" accept=".csv,.txt">
+      <span style="width:1px;height:20px;background:var(--line);align-self:center"></span>
+      <button class="ghost sm" id="btnErpMapEdit">商品分类映射表</button>
+      <button class="ghost sm" id="btnErpExp">导出易助 CSV</button>
+      <span class="muted" id="erpFileName"></span>
+    </div>
+
+    <div class="row" style="margin:0 0 10px">
+      <div style="flex:0 0 250px;min-width:250px">
+        <label title="试样单自动分类时零级取哪个客户，与⑦面板一致">本批零级（客户）</label>
+        <select id="selErpZero"></select>
+      </div>
+      <div style="flex:1;align-self:flex-end" class="muted">留「自动判断」则按 映射库 → 规则 推断；选定后被 Provider 覆盖。</div>
+    </div>
+
+    <div id="erpMsg"></div>
+    <div id="erpStat" class="note"></div>
+    <div id="erpArea"></div>
+    <div id="erpMapBox" style="display:none"></div>
+
+    <div class="note" style="margin-top:10px">
+      <b>处理规则</b>：<br>
+      ① <b>材质牌号</b>：取「规格」开头的英文字母与数字组合（<code>Z80镀锌板T=1.0</code> → <code>Z80</code>；<code>PE灰 T5*122</code> → <code>PE</code>），匹配不到则填 <code>/</code>。<br>
+      ② <b>去重</b>：按<b>图号</b>判重，保留首次出现的行（ERP 建档同一品号只能有一条），被剔除的行会列出来供核对。<br>
+      ③ <b>商品分类</b>：由「一级 + 四级」组合查映射表得出；<b>查不到的一律留空并在预览里标红</b>，绝不猜值。<br>
+      ④ <b>主要来源</b>：四级 <code>0-自制件</code> → <code>M</code>，<code>1-采购件</code> → <code>P</code>。<br>
+      ⑤ <b>物料发货号</b>：按你的要求<b>全部留空</b>。<br>
+      ⑥ 导出的 <code>用量 / 单套用量</code> <b>不会</b>进入易助商品基本信息表（那里没有对应列，用量属于 BOM 表）。
     </div>
   </div>
 
@@ -686,6 +777,7 @@ function ensureL4Node(l1,l2,l3,l4){
   return true;
 }
 function refreshLevelCascade(){
+  refreshAutoZeroSels();
   const z=$("selZero").value;
   fillLevel("selZero","— 零级 —",[], z);
   // v6：二级/三级与上级解耦 —— 一~四级均为独立清单，选客户后直接全量可选
@@ -1085,6 +1177,241 @@ function download(name,content,type){ const b=new Blob([content],{type}); const 
 const BATCH_HEAD=["图号","品名","规格","材质牌号","零级码","零级名称","一级码","一级名称","二级码","二级名称","三级码","三级名称","四级码","五级码"];
 let batchRows=[];
 
+/* ================= 自动分类引擎（映射库 + 规则） =================
+   三层漏斗：图号/品名映射库精确命中 → 规则推断 → 默认兜底（标红待人工）。
+   规则与映射库均可由用户在「⑦ 智能分类」面板导入 CSV 维护。 */
+const CATRULE_DEFAULT=[
+{lv:"零级",pl:"",pv:"",f:"ANY",op:"IN",kw:"",code:"01",name:"富耐连",cf:"HIGH",note:"当前唯一客户 兜底默认"},
+{lv:"一级",pl:"",pv:"",f:"MAT",op:"IN",kw:"标准件采购",code:"04",name:"标准件",cf:"HIGH",note:"材质列写标准件采购"},
+{lv:"一级",pl:"",pv:"",f:"NAME",op:"IN",kw:"NUT SCREW BOLT 螺母 螺钉 螺栓 内六角 头螺 沉头 紧定 平键 卡簧",code:"04",name:"标准件",cf:"HIGH",note:"品名即紧固件 优先于材质牌号"},
+{lv:"一级",pl:"",pv:"",f:"MAT",op:"RE",kw:"^(SUS|Q235|Q345|ST12|45#|40CR|11SMNPB30|AL|铝型材|PVC|PE|PP|尼龙)",code:"03",name:"成品",cf:"HIGH",note:"材质写具体牌号即原材料"},
+{lv:"一级",pl:"",pv:"",f:"MAT",op:"IN",kw:"消耗品采购",code:"09",name:"消耗品",cf:"HIGH",note:"材质列写消耗品采购"},
+{lv:"一级",pl:"",pv:"",f:"ANY",op:"IN",kw:"无需采购",code:"09",name:"消耗品",cf:"MID",note:"软件 参数文件等虚拟件"},
+{lv:"一级",pl:"",pv:"",f:"ANY",op:"IN",kw:"纸箱 纸板 CARTON",code:"05",name:"包装",cf:"HIGH",note:"包装材料"},
+{lv:"一级",pl:"",pv:"",f:"ANY",op:"IN",kw:"PE袋 扎带 CABLE",code:"09",name:"消耗品",cf:"HIGH",note:"包装辅料"},
+{lv:"一级",pl:"",pv:"",f:"NAME",op:"IN",kw:"INSTRUCTION 说明书 打印页",code:"09",name:"消耗品",cf:"MID",note:"印刷品 注意与说明书组件区分"},
+{lv:"一级",pl:"",pv:"",f:"MAT",op:"IN",kw:"标签",code:"09",name:"消耗品",cf:"MID",note:"材质列标注标签"},
+{lv:"一级",pl:"",pv:"",f:"MAT",op:"IN",kw:"样品客户提供",code:"04",name:"标准件",cf:"MID",note:"外购成品件走标准件"},
+{lv:"一级",pl:"",pv:"",f:"ANY",op:"IN",kw:"蓝白锌 白锌",code:"04",name:"标准件",cf:"HIGH",note:"紧固件表面处理特征"},
+{lv:"一级",pl:"",pv:"",f:"ANY",op:"IN",kw:"六角头 螺栓 螺钉 SCREW BOLT",code:"04",name:"标准件",cf:"HIGH",note:"螺纹紧固件"},
+{lv:"一级",pl:"",pv:"",f:"ANY",op:"RE",kw:"(ISO|DIN|GB/T|GB|EN|JIS)\\s*\\d",code:"04",name:"标准件",cf:"HIGH",note:"规格引用国际标准号"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"DIN\\s*6885",code:"00",name:"无二级细分",cf:"HIGH",note:"平键不细分"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"DIN\\s*471",code:"00",name:"无二级细分",cf:"HIGH",note:"轴用卡簧不细分"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"DIN\\s*472",code:"47",name:"挡圈",cf:"HIGH",note:"孔用挡圈"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"ISO\\s*10642",code:"41",name:"螺栓",cf:"HIGH",note:"内六角沉头螺钉"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"ISO\\s*4017",code:"41",name:"螺栓",cf:"HIGH",note:"六角头螺栓"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"ISO\\s*4029",code:"41",name:"螺栓",cf:"HIGH",note:"紧定螺钉"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"ISO\\s*4762",code:"41",name:"螺栓",cf:"HIGH",note:"内六角圆柱头螺钉"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"ISO\\s*4014",code:"41",name:"螺栓",cf:"HIGH",note:"六角头螺栓"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"DIN\\s*7984",code:"41",name:"螺栓",cf:"HIGH",note:"内六角圆柱头螺钉"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"GB/T?\\s*70",code:"41",name:"螺栓",cf:"HIGH",note:"内六角圆柱头螺钉"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"GB/T?\\s*5783",code:"41",name:"螺栓",cf:"HIGH",note:"六角头螺栓"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"EN\\s*1665",code:"41",name:"螺栓",cf:"HIGH",note:"六角法兰面螺栓"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"ISO\\s*7434",code:"41",name:"螺栓",cf:"HIGH",note:"开槽锥端紧定螺钉"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"DIN\\s*7500",code:"41",name:"螺栓",cf:"HIGH",note:"自挤螺钉"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"ISO\\s*14585",code:"41",name:"螺栓",cf:"HIGH",note:"自攻螺钉"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"ISO\\s*4032",code:"42",name:"螺母",cf:"HIGH",note:"六角螺母"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"DIN\\s*985",code:"42",name:"螺母",cf:"HIGH",note:"尼龙锁紧螺母"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"DIN\\s*1587",code:"42",name:"螺母",cf:"HIGH",note:"六角盖形螺母"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"GB/T?\\s*6172",code:"42",name:"螺母",cf:"HIGH",note:"六角薄螺母"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"ISO\\s*7089",code:"43",name:"垫圈",cf:"HIGH",note:"平垫圈"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"DIN\\s*137",code:"43",name:"垫圈",cf:"HIGH",note:"鞍形弹性垫圈"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"ISO\\s*2338",code:"45",name:"销",cf:"HIGH",note:"圆柱销"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"ISO\\s*8750",code:"45",name:"销",cf:"HIGH",note:"弹性圆柱销"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"RE",kw:"GB/T?\\s*879",code:"45",name:"销",cf:"HIGH",note:"卷制弹性圆柱销"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"IN",kw:"螺栓 螺钉 SCREW BOLT 内六角 头螺 沉头 紧定",code:"41",name:"螺栓",cf:"HIGH",note:"螺纹紧固件"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"IN",kw:"螺母 NUT",code:"42",name:"螺母",cf:"HIGH",note:""},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"IN",kw:"垫圈 垫片 WASHER",code:"43",name:"垫圈",cf:"HIGH",note:""},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"IN",kw:"销 PIN",code:"45",name:"销",cf:"HIGH",note:"圆柱销 弹性销"},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"IN",kw:"轴承 BEARING",code:"49",name:"轴承",cf:"HIGH",note:""},
+{lv:"二级",pl:"一级",pv:"04",f:"ANY",op:"IN",kw:"卡簧 挡圈 RETAINING",code:"47",name:"挡圈",cf:"LOW",note:"人工常留空 命中率低"},
+{lv:"二级",pl:"一级",pv:"03",f:"MAT",op:"IN",kw:"SUS Q235 Q345 ST12 45# 40CR 11SMNPB30 钢 铁",code:"04",name:"钢铁加工类",cf:"HIGH",note:"材质牌号判定"},
+{lv:"二级",pl:"一级",pv:"03",f:"MAT",op:"IN",kw:"AL 铝",code:"03",name:"铝加工类",cf:"HIGH",note:"材质牌号判定"},
+{lv:"二级",pl:"一级",pv:"03",f:"MAT",op:"IN",kw:"PVC PE PP PC ABS 尼龙 NYLON 橡胶 RUBBER 聚乙烯 PUR TPE UHM 电木",code:"01",name:"绝缘类",cf:"HIGH",note:"非金属走绝缘类"},
+{lv:"二级",pl:"一级",pv:"03",f:"NAME",op:"IN",kw:"LABEL 标签",code:"90",name:"标签",cf:"MID",note:"成品标签"},
+{lv:"三级",pl:"二级",pv:"04",f:"ANY",op:"IN",kw:"圆钢 ROUND",code:"43",name:"圆钢",cf:"HIGH",note:""},
+{lv:"三级",pl:"二级",pv:"04",f:"ANY",op:"IN",kw:"扁钢",code:"41",name:"扁钢",cf:"HIGH",note:""},
+{lv:"三级",pl:"二级",pv:"04",f:"ANY",op:"IN",kw:"六角钢",code:"45",name:"六角钢",cf:"HIGH",note:""},
+{lv:"三级",pl:"二级",pv:"04",f:"ANY",op:"IN",kw:"方钢",code:"42",name:"方钢",cf:"HIGH",note:""},
+{lv:"三级",pl:"二级",pv:"04",f:"SPEC",op:"IN",kw:"t=",code:"40",name:"钢板",cf:"HIGH",note:"标注厚度的板材下料"},
+{lv:"三级",pl:"二级",pv:"04",f:"NAME",op:"IN",kw:"SHAFT DRIVE ROD 轴",code:"43",name:"圆钢",cf:"MID",note:"轴类多为圆钢下料"},
+{lv:"三级",pl:"二级",pv:"04",f:"NAME",op:"IN",kw:"PLATE SLACK PROTECTION COVER BRACKET ARM TORQUE 支架 板",code:"40",name:"钢板",cf:"MID",note:"结构件多为钢板下料"},
+{lv:"三级",pl:"二级",pv:"03",f:"ANY",op:"IN",kw:"铝圆 铝棒",code:"30",name:"铝圆",cf:"HIGH",note:""},
+{lv:"三级",pl:"二级",pv:"03",f:"ANY",op:"IN",kw:"铝板",code:"32",name:"铝板",cf:"HIGH",note:""},
+{lv:"三级",pl:"二级",pv:"03",f:"ANY",op:"IN",kw:"铝型材 铝方",code:"33",name:"铝型材",cf:"HIGH",note:""},
+{lv:"三级",pl:"二级",pv:"03",f:"SPEC",op:"IN",kw:"t=",code:"32",name:"铝板",cf:"MID",note:"标注厚度的铝板"},
+{lv:"三级",pl:"一级",pv:"09",f:"MAT",op:"IN",kw:"尼龙 NYLON",code:"11",name:"NYLONG66",cf:"HIGH",note:"扎带材质"},
+{lv:"四级",pl:"",pv:"",f:"ANY",op:"IN",kw:"外协 委外 外加工 开槽 铣床 钻铣",code:"3",name:"委外加工",cf:"HIGH",note:"工序外发"},
+{lv:"四级",pl:"",pv:"",f:"ANY",op:"RE",kw:"t\\s*=\\s*[\\d.]+.*(Q235|Q345|ST12|SUS|钢)",code:"2",name:"厂内自制",cf:"HIGH",note:"钢板下料多为厂内自制 30条中29条"},
+{lv:"四级",pl:"",pv:"",f:"ANY",op:"IN",kw:"子装配 说明书组件",code:"2",name:"厂内自制",cf:"HIGH",note:""},
+{lv:"四级",pl:"",pv:"",f:"ANY",op:"IN",kw:"装配体",code:"2",name:"厂内自制",cf:"HIGH",note:""},
+{lv:"四级",pl:"",pv:"",f:"MAT",op:"EQ",kw:"装配",code:"2",name:"厂内自制",cf:"HIGH",note:"材质列写装配"},
+{lv:"四级",pl:"",pv:"",f:"NAME",op:"IN",kw:"UNIT ASSEMBLY KIT",code:"2",name:"厂内自制",cf:"MID",note:"装配单元"},
+{lv:"一级",pl:"",pv:"",f:"ANY",op:"IN",kw:"波兰采购 供应商采购 劲拓采购 SKF采购 采购成品 采购件",code:"03",name:"成品",cf:"HIGH",note:"规格标注从外采购的成品件"},
+{lv:"四级",pl:"",pv:"",f:"ANY",op:"IN",kw:"波兰采购 供应商采购 劲拓采购 SKF采购 IDC 采购",code:"1",name:"采购件",cf:"HIGH",note:"规格标注外部采购来源"}
+];
+const CATMAP_KEY="erp_catmap_v1", CATRULE_KEY="erp_catrule_v1";
+let CATMAP=[];                 // [{draw,name,spec,mat,z,l1,l2,l3,l4}]
+let CATRULE=null;              // null = 用内置默认规则
+function loadCatLocal(){
+  try{ const s=localStorage.getItem(CATMAP_KEY); const a=s?JSON.parse(s):[]; CATMAP=Array.isArray(a)?a:[]; }catch(e){ CATMAP=[]; }
+  try{ const s=localStorage.getItem(CATRULE_KEY); const a=s?JSON.parse(s):null; CATRULE=Array.isArray(a)&&a.length?a:null; }catch(e){ CATRULE=null; }
+}
+function saveCatMapLocal(){ try{ localStorage.setItem(CATMAP_KEY,JSON.stringify(CATMAP)); }catch(e){} }
+function saveCatRuleLocal(){ try{ if(CATRULE) localStorage.setItem(CATRULE_KEY,JSON.stringify(CATRULE)); else localStorage.removeItem(CATRULE_KEY); }catch(e){} }
+function normCat(s){ return String(s==null?"":s).replace(/\s+/g,"").toUpperCase(); }
+function catRules(){ return (Array.isArray(CATRULE)&&CATRULE.length)?CATRULE:CATRULE_DEFAULT; }
+const RULE_LV={"零级":"z","一级":"l1","二级":"l2","三级":"l3","四级":"l4"};
+const RULE_LVCN=["零级","一级","二级","三级","四级"];
+const RULE_DEF={z:{code:"01",name:"富耐连"},l1:{code:"03",name:"成品"},l2:{code:"00",name:"无二级细分"},l3:{code:"00",name:"无三级细分"},l4:{code:"1",name:"采购件"}};
+function ruleMatch(rec,r){
+  const f=String(r.f||"ANY").toUpperCase(), op=String(r.op||"IN").toUpperCase(), kw=String(r.kw||"");
+  const src={DRAW:rec.draw,NAME:rec.name,SPEC:rec.spec,MAT:rec.mat};
+  const t=(f==="ANY"?[rec.draw,rec.name,rec.spec,rec.mat].join(" "):String(src[f]||"")).toUpperCase();
+  if(op==="EQ") return t===kw.toUpperCase();
+  if(op==="IN") return kw.split(/\s+/).filter(Boolean).some(k=>t.indexOf(k.toUpperCase())>=0);
+  if(op==="RE"){ try{ return new RegExp(kw,"i").test(t); }catch(e){ return false; } }
+  return false;
+}
+function ruleInfer(rec){
+  const out={},conf={};
+  ["z","l1","l2","l3","l4"].forEach(k=>{ const d=RULE_DEF[k]; out[k]={code:d.code,name:d.name}; conf[k]="DEF"; });
+  RULE_LVCN.forEach(lv=>{
+    const key=RULE_LV[lv];
+    for(const r of catRules()){
+      if(r.lv!==lv) continue;
+      if(conf[key]!=="DEF") break;                        // 本层已命中，后续规则不再覆盖
+      if(r.pl&&r.pv){ const cur=out[RULE_LV[r.pl]]; if(!cur) continue;
+        const ok=String(r.pv).split(/\s+/).filter(Boolean).some(p=>String(cur.code)===p||p===String(cur.code+"-"+cur.name));
+        if(!ok) continue; }
+      if(ruleMatch(rec,r)){ out[key]={code:String(r.code||""),name:String(r.name||"")}; conf[key]=r.cf||"MID"; }
+    }
+  });
+  return {out,conf};
+}
+function pickPath(list){                                   // 组内分类完全一致才采信，避免把分歧带进来
+  const cnt={};
+  list.forEach(x=>{ const k=[x.z,x.l1,x.l2,x.l3,x.l4].join("|"); cnt[k]=(cnt[k]||0)+1; });
+  const ks=Object.keys(cnt);
+  return ks.length===1?ks[0].split("|"):null;
+}
+function catMapLookup(rec){
+  const db=CATMAP; if(!db.length) return null;
+  const nn=normCat(rec.name), nm=normCat(rec.mat), nd=normCat(rec.draw);
+  if(nd){ const h=db.filter(x=>normCat(x.draw)===nd); if(h.length){ const p=pickPath(h); if(p) return {path:p,src:"映射库·图号一致"}; } }
+  if(nn){
+    const h1=db.filter(x=>normCat(x.name)===nn&&normCat(x.mat)===nm);
+    if(h1.length){ const p=pickPath(h1); if(p) return {path:p,src:"映射库·品名+材质一致"}; }
+    const h2=db.filter(x=>normCat(x.name)===nn);
+    if(h2.length){ const p=pickPath(h2); if(p) return {path:p,src:"映射库·品名一致"}; }
+  }
+  return null;
+}
+// 零级（客户）由用户在界面上指定：selAutoZero=全局默认，selBatchZero=本批次覆盖。
+// 指定后优先级高于映射库与规则，因为「这批货属于哪个客户」是业务事实，不该由物料特征猜。
+const AUTOZERO_KEY="erp_autozero_v1";
+let AUTO_ZERO="";
+function loadAutoZero(){ try{ AUTO_ZERO=localStorage.getItem(AUTOZERO_KEY)||""; }catch(e){ AUTO_ZERO=""; } }
+function saveAutoZero(){ try{ if(AUTO_ZERO) localStorage.setItem(AUTOZERO_KEY,AUTO_ZERO); else localStorage.removeItem(AUTOZERO_KEY); }catch(e){} }
+function fillAutoZeroSel(id,keep){                    // 空选项 = 自动判断（交给映射库/规则）
+  const el=$(id); if(!el) return;
+  fillLevel(id,"（自动判断）",[], keep!=null?keep:el.value);
+}
+function refreshAutoZeroSels(){
+  fillAutoZeroSel("selAutoZero", AUTO_ZERO||$("selAutoZero").value);
+  fillAutoZeroSel("selBatchZero", ($("selBatchZero")&&$("selBatchZero").value)||AUTO_ZERO);
+}
+function curAutoZero(){                               // 本批次优先，回退全局默认
+  const b=$("selBatchZero");
+  const v=b&&b.value?b.value:"";
+  return v||AUTO_ZERO||"";
+}
+function autoClassify(rec,zeroOverride){
+  const m=catMapLookup(rec), K=["z","l1","l2","l3","l4"];
+  let out,conf,src;
+  if(m){
+    out={};conf={};
+    K.forEach((k,i)=>{ const sn=splitCodeName(m.path[i]); out[k]={code:sn.code,name:sn.name}; conf[k]="MAP"; });
+    src=m.src;
+  }else{
+    const ri=ruleInfer(rec); out=ri.out; conf=ri.conf; src="规则推断";
+  }
+  const zo=String(zeroOverride==null?"":zeroOverride).trim();
+  if(zo){
+    const zd=(typeof clientsMap==="function"?clientsMap():{})[zo]||lvlDict("zero")[zo]||{};
+    const zn=(typeof zd==="string")?zd:(zd.name||"");
+    out.z={code:zo,name:zn||out.z.name||""}; conf.z="USER";
+    src+="（零级由你指定）";
+  }
+  return {out,conf,src};
+}
+// 取「最差的一层」作为整行置信：NONE < 默认兜底 < 低 < 中 < 高 < 映射命中
+const CONF_RANK={NONE:0,DEF:1,LOW:2,MID:3,HIGH:4,MAP:5,USER:6};   // USER = 用户显式指定，优先级最高
+function autoLevelConf(conf){
+  // 只看最关键的两层：一级（物料属性）与四级（来源）。二/三级默认「00 无细分」属常态，
+  // 若把它们也算进来，几乎每行都会因默认兜底被判成最低置信，警示就失去意义。
+  const K=["l1","l4"].map(k=>conf[k]||"NONE");
+  let worst="MAP";
+  K.forEach(c=>{ if((CONF_RANK[c]||0)<(CONF_RANK[worst]||0)) worst=c; });
+  return worst;
+}
+const CONF_TAG={USER:["你指定","ok"],MAP:["映射命中","ok"],HIGH:["规则·高","ok"],MID:["规则·中","warn"],LOW:["规则·低","warn"],DEF:["默认兜底","warn"],NONE:["未命中","bad"]};
+function catConfChip(c){ const t=CONF_TAG[c]||CONF_TAG.NONE;
+  return `<span class="pill cf-${c.toLowerCase()}" title="分类来源与置信度">${t[0]}</span>`; }
+// 映射库导入：兼容「图号,品名,规格,材质牌号,零级,一级,二级,三级,四级」与批量模板 14 列两种格式
+function catMapImport(text){
+  const parsed=parseCSV(text); const rows=parsed.filter(r=>r&&r.some(c=>String(c==null?"":c).trim()!==""));
+  if(rows.length<2) return {ok:false,msg:"没有数据行（需表头 + 至少一行）"};
+  const head=rows[0].map(s=>String(s).trim()); const idx={}; head.forEach((h,i)=>{ if(h&&!(h in idx)) idx[h]=i; });
+  const cell=(r,k)=>{ const i=idx[k]; return i===undefined?"":String(r[i]==null?"":r[i]).trim(); };
+  if(idx["品名"]===undefined) return {ok:false,msg:'缺少「品名」列'};
+  const hasLv=idx["零级"]!==undefined||idx["零级码"]!==undefined;
+  if(!hasLv) return {ok:false,msg:'缺少分类列（零级~四级）'};
+  const add=[];
+  for(let i=1;i<rows.length;i++){
+    const r=rows[i];
+    const name=cell(r,"品名"); if(!name) continue;
+    const g=k=>{ let v=cell(r,k); if(!v&&idx[k+"码"]!==undefined){ const c=cell(r,k+"码"), n=cell(r,k+"名称"); if(c) v=c+(n?"-"+n:""); }
+      return v; };
+    const o={draw:cell(r,"图号"),name,spec:cell(r,"规格"),mat:cell(r,"材质牌号"),
+      z:g("零级"),l1:g("一级"),l2:g("二级"),l3:g("三级"),l4:g("四级")};
+    if(!o.z&&!o.l1) continue;
+    add.push(o);
+  }
+  if(!add.length) return {ok:false,msg:"没有解析出有效行（品名或分类列为空）"};
+  CATMAP=CATMAP.concat(add); saveCatMapLocal(); syncCatMap();
+  return {ok:true,n:add.length,total:CATMAP.length};
+}
+function catRuleImport(text){
+  const parsed=parseCSV(text); const rows=parsed.filter(r=>r&&r.some(c=>String(c==null?"":c).trim()!==""));
+  if(rows.length<2) return {ok:false,msg:"没有数据行"};
+  const head=rows[0].map(s=>String(s).trim()); const idx={}; head.forEach((h,i)=>{ if(h&&!(h in idx)) idx[h]=i; });
+  const need=["层级","字段","方式","关键词","赋值码","赋值名","置信度"];
+  const miss=need.filter(k=>idx[k]===undefined);
+  if(miss.length) return {ok:false,msg:"缺少列："+miss.join("、")};
+  const out=[];
+  for(let i=1;i<rows.length;i++){
+    const r=rows[i]; if(r.length>head.length) continue;
+    const g=k=>{ const j=idx[k]; return j===undefined?"":String(r[j]==null?"":r[j]).trim(); };
+    if(!g("层级")) continue;
+    out.push({lv:g("层级"),pl:g("前提层"),pv:g("前提值"),f:g("字段"),op:g("方式"),kw:g("关键词"),
+      code:g("赋值码"),name:g("赋值名"),cf:g("置信度")||"MID",note:g("说明")||""});
+  }
+  if(!out.length) return {ok:false,msg:"没有解析出有效规则"};
+  CATRULE=out; saveCatRuleLocal(); syncCatRule();
+  return {ok:true,n:out.length};
+}
+function catRuleExportRows(){
+  return catRules().map(r=>[r.lv,r.pl,r.pv,r.f,r.op,r.kw,r.code,r.name,r.cf,r.note]);
+}
+function catMapExportRows(){
+  return CATMAP.map(x=>[x.draw,x.name,x.spec,x.mat,x.z,x.l1,x.l2,x.l3,x.l4]);
+}
+function syncCatMap(){ if(typeof DB!=="undefined"&&DB&&DB.saveConfig) DB.saveConfig("CATMAP",CATMAP); }
+function syncCatRule(){ if(typeof DB!=="undefined"&&DB&&DB.saveConfig) DB.saveConfig("CATRULE",CATRULE||null); }
+loadCatLocal(); loadAutoZero();
+
+
 function batchMsg(html,kind){
   const el=$("batchArea"); if(!el) return;
   el.innerHTML=`<div class="${kind==="ok"?"analysis":"warnbox"}" style="margin:8px 0">${html}</div>`;
@@ -1176,6 +1503,7 @@ function batchAnalyze(text){
   const cell=(r,k)=>{ const i=idx[k]; return i===undefined?"":String(r[i]==null?"":r[i]).trim(); };
   // 判定格式：附件格式（10 列，零级/一级/…/四级 用「码-名称」合并写法）还是标准格式（14 列，码/名称各一列）
   const attached = idx["零级码"]===undefined && idx["零级"]!==undefined;
+  const zOv=curAutoZero();                          // 用户在界面上选的零级（空=自动判断）
   const out=[];
   for(let ri=1;ri<rows.length;ri++){
     const r=rows[ri], rec={ln:ri+1,errs:[],valid:false};
@@ -1192,15 +1520,27 @@ function batchAnalyze(text){
       {key:"l3",pk:"三级码",pn:"三级名称",alias:"三级",len:2,label:"三级",parent:()=>[rec.z,rec.l1,rec.l2]},
       {key:"l4",pk:"四级码",pn:"四级名称",alias:"四级",len:1,label:"四级",parent:()=>[rec.z,rec.l1,rec.l2,rec.l3]}
     ];
+    // 分类列留空的行 → 走自动分类（映射库 → 规则 → 默认兜底），逐层记录置信度
+    const auto=autoClassify({draw:rec.draw,name:rec.name,spec:rec.spec,mat:rec.mat}, zOv);
+    rec.auto=auto; rec.autoU={};
+    chain.forEach(c=>{
+      const has=attached?!!cell(r,c.alias):(!!cell(r,c.pk)||!!cell(r,c.pn));
+      rec.autoU[c.key]=!has;
+    });
     for(const c of chain){                       // 上级没定位到就别往下找
       let codeRaw="", nameRaw="";
       if(attached){                               // 附件格式：单格「码-名称」拆分
         const sn=splitCodeName(cell(r,c.alias)); codeRaw=sn.code; nameRaw=sn.name;
       }else{ codeRaw=cell(r,c.pk); nameRaw=cell(r,c.pn); }
+      if(rec.autoU[c.key]&&auto&&auto.out[c.key]){ codeRaw=auto.out[c.key].code; nameRaw=auto.out[c.key].name; }
       const res=batchPick(c.parent(),codeRaw,nameRaw,c.len,c.label);
       if(res.err){ rec.errs.push(res.err); break; }
       rec[c.key]=res.code;
     }
+    const autoLv=Object.keys(rec.autoU||{}).filter(k=>rec.autoU[k]);
+    if(autoLv.length){ const c2={}; autoLv.forEach(k=>c2[k]=rec.auto.conf[k]); rec.catConf=autoLevelConf(c2); }
+    else rec.catConf="MANUAL";
+    rec.catSrc=autoLv.length?(rec.auto.src||""):"CSV 已填分类";
     if(!rec.name) rec.errs.push("品名必填");
     if(!rec.mat)  rec.errs.push("材质牌号必填");
     if(rec.l5manual && !/^\d{4}$/.test(rec.l5manual)) rec.errs.push(`五级码「${rec.l5manual}」须 4 位数字`);
@@ -1275,6 +1615,15 @@ function batchRender(){
     ${nBad?`<span class="pill" style="background:#fff1f0;color:var(--bad)">无效 <b>${nBad}</b></span>`:""}
     <span class="muted">预览中的号码 = 保持默认选择后的最终结果；每行可单独改成「新建 / 复用 / 跳过」</span>
   </div>`;
+  const zv=curAutoZero();
+  if(zv){ const zn=(function(){ const c=clientsMap()[zv]; return c?(c.name||c):""; })();
+    h+=`<div class="note" style="margin:0 0 10px">本批零级锁定为 <b>${esc(zv)}${zn?" "+esc(zn):""}</b>（来自「本次零级」/ 面板⑦ 默认设定），优先级高于映射库与规则。</div>`; }
+  const cc={MAP:0,HIGH:0,MID:0,NONE:0,MANUAL:0};
+  ok.forEach(r=>{ if(cc[r.catConf]!==undefined) cc[r.catConf]++; });
+  if(cc.MAP+cc.HIGH+cc.MID+cc.NONE>0){
+    h+=`<div class="note" style="margin:0 0 10px">分类来源：<b>映射命中 ${cc.MAP}</b> · <b>规则高置信 ${cc.HIGH}</b> · <b>规则中置信 ${cc.MID}</b> · <span style="color:var(--bad)"><b>未命中 ${cc.NONE}</b></span>${cc.MANUAL?` · CSV 已填 ${cc.MANUAL}`:""}。
+      黄/红行请人工确认：在 CSV 里补填该行分类列，或到「⑦ 智能分类」扩充映射库与规则。</div>`;
+  }
   if(batchBroken.fixed>0||batchBroken.splitOut>0){   // 修复提示：让用户知道系统替做了什么
     h+=`<div class="warnbox" style="margin:0 0 10px">已自动修复 Excel 另存 CSV 造成的行损坏：
       ${batchBroken.fixed?`合并断行 <b>${batchBroken.fixed}</b> 处；`:''}
@@ -1302,7 +1651,7 @@ function batchRender(){
     h+=`<tr><td>${r.ln}</td>
       <td><select id="bSel_${r.ln}" class="b-sel">${opts}</select></td>
       <td class="erp">${esc(r.final||"—")}</td>
-      <td>${esc(r.path||"")}</td>
+      <td title="分类来源：${esc(r.catSrc||"")}">${esc(r.path||"")} ${r.catConf&&r.catConf!=="MANUAL"?catConfChip(r.catConf):'<span class="muted">手填</span>'}</td>
       <td>${esc(r.draw||"—")}</td>
       <td>${esc(r.name)}</td><td>${esc(r.spec||"—")}</td><td>${esc(r.mat)}</td>
       <td class="muted">${esc(r.reuseSrc||(r.pick==="new"?(r.l5manual?"按指定五级":"本分支无完全一致物料，自动流水"):""))}</td></tr>`;
@@ -1409,7 +1758,7 @@ $("btnBatchTpl").onclick=()=>{
 };
 $("btnBatchImport").onclick=()=>$("fileBatch").click();
 // 版本标记：改动后请同步更新此串，方便一眼确认浏览器加载的是不是最新页面（防 file:// 缓存）
-const APP_VER="2026-10-13 01:10 · 双轨编码 + 自查修复(norm匹配/13位守卫/死代码清理)";
+const APP_VER="2026-10-14 00:30 · 双轨编码 + ⑧试样单→易助118列转入";
 if($("verTag")) $("verTag").textContent="v"+APP_VER;
 $("fileBatch").onchange=e=>{
   const f=e.target.files[0]; e.target.value=""; if(!f) return;
@@ -2534,6 +2883,108 @@ function showCsvResult(res){
   if(s.errs.length) h+=`<div class="muted">无效行明细：<br>${s.errs.slice(0,8).map(esc).join("<br>")}${s.errs.length>8?"<br>…":""}</div>`;
   csvMsg(h,"ok");
 }
+function catMsg(html,kind){ const el=$("catMsg"); if(!el) return;
+  el.innerHTML=`<div class="${kind==="ok"?"analysis":"warnbox"}" style="margin:8px 0">${html}</div>`; }
+function renderCatStat(){
+  const el=$("catStat"); if(!el) return;
+  const db=CATMAP, keys={};
+  db.forEach(x=>{ const k=normCat(x.name)+"|"+normCat(x.mat); keys[k]=1; });
+  const uniqName={}; db.forEach(x=>{ uniqName[normCat(x.name)]=1; });
+  el.innerHTML=`映射库 <b>${db.length}</b> 条（唯一「品名+材质」${Object.keys(keys).length} 个 / 唯一品名 ${Object.keys(uniqName).length} 个） · 规则 <b>${catRules().length}</b> 条${CATRULE?"（<b>自定义</b>）":"（内置默认）"}`;
+}
+function downloadRows(name,head,rows){
+  const csv=[head].concat(rows).map(r=>r.map(c=>`"`+String(c==null?"":c).replace(/"/g,'""')+`"`).join(",")).join("\r\n");
+  const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },0);
+}
+// 把映射库与规则里用到的分类码补进分类树（当前分类树为空时必做，否则自动分类出的码会被判为「树里没有」）
+function treeFillFromLib(){
+  if(!CFG.lv) return 0;
+  let n=0;
+  const L={零级:"zero",一级:"l1",二级:"l2",三级:"l3",四级:"l4"};
+  const put=(d,code,name)=>{ if(!code) return; if(!d[code]){ d[code]={name:name||code,diff:"",note:""}; n++; } else if(name&&!d[code].name) d[code].name=name; };
+  CATMAP.forEach(x=>{
+    ["z","l1","l2","l3","l4"].forEach((k,i)=>{
+      const lv=["zero","l1","l2","l3","l4"][i], sn=splitCodeName(x[k]);
+      put(lvlDict(lv),sn.code,sn.name);
+    });
+  });
+  catRules().forEach(r=>{ const lv=L[r.lv]; if(lv) put(lvlDict(lv),String(r.code||""),r.name); });
+  if(n){ saveCFG(); try{ refreshAll(); }catch(e){} }
+  return n;
+}
+$("btnMapImport").onclick=()=>$("fileMap").click();
+$("fileMap").onchange=e=>{
+  const f=e.target.files&&e.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{ const res=catMapImport(String(rd.result||""));
+    if(!res.ok) catMsg(res.msg,"");
+    else { CATMAP=CATMAP; renderCatStat(); catMsg(`已导入 <b>${res.n}</b> 条，映射库现有 <b>${res.total}</b> 条。导入是<b>追加</b>，重复条目不会去重，可先「清空映射库」再导入。`,"ok"); }
+    e.target.value=""; };
+  rd.readAsText(f,"UTF-8");
+};
+$("btnMapExport").onclick=()=>{
+  if(!CATMAP.length){ catMsg("映射库是空的，先导入一份 CSV",""); return; }
+  downloadRows("分类映射库_"+CATMAP.length+"条.csv",["图号","品名","规格","材质牌号","零级","一级","二级","三级","四级"],catMapExportRows());
+  catMsg(`已导出 ${CATMAP.length} 条`,"ok");
+};
+$("btnMapClear").onclick=()=>{ requirePwd(()=>{
+  if(!CATMAP.length){ catMsg("映射库本来就是空的",""); return; }
+  if(!confirm(`清空映射库 ${CATMAP.length} 条？此操作会同步到云端，影响全团队。`)) return;
+  CATMAP=[]; saveCatMapLocal(); syncCatMap(); renderCatStat(); catMsg("映射库已清空","ok"); }); };
+$("btnRuleImport").onclick=()=>$("fileRule").click();
+$("fileRule").onchange=e=>{
+  const f=e.target.files&&e.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{ const res=catRuleImport(String(rd.result||""));
+    if(!res.ok) catMsg(res.msg,"");
+    else { renderCatStat(); catMsg(`已导入 <b>${res.n}</b> 条规则（<b>覆盖</b>内置默认规则）。想恢复默认点「恢复默认规则」。`,"ok"); }
+    e.target.value=""; };
+  rd.readAsText(f,"UTF-8");
+};
+$("btnRuleExport").onclick=()=>{
+  downloadRows("分类规则_"+catRules().length+"条.csv",["层级","序号","规则名","前提层","前提值","字段","方式","关键词","赋值码","赋值名","置信度","说明"],catRuleExportRows());
+  catMsg(`已导出 ${catRules().length} 条规则，可在 Excel 里改完再导入`,"ok");
+};
+$("btnRuleReset").onclick=()=>{
+  if(!CATRULE){ catMsg("当前已是内置默认规则",""); return; }
+  if(!confirm("丢弃自定义规则，恢复内置默认？")) return;
+  CATRULE=null; saveCatRuleLocal(); syncCatRule(); renderCatStat(); catMsg("已恢复内置默认规则","ok");
+};
+$("btnTreeFill").onclick=()=>{ requirePwd(()=>{
+  const n=treeFillFromLib();
+  if(!n) catMsg("分类树已包含库内全部分类码，无需补建","ok");
+  else catMsg(`已补建 <b>${n}</b> 个分类节点（零~四级），现在自动分类出的码都能在树里找到了。`,"ok"); }); };
+$("btnTryCat").onclick=()=>{
+  const rec={draw:$("tcDraw").value.trim(),name:$("tcName").value.trim(),spec:$("tcSpec").value.trim(),mat:$("tcMat").value.trim()};
+  if(!rec.name&&!rec.draw){ $("tryCatOut").innerHTML='<div class="warnbox" style="margin:8px 0">至少填「品名」或「图号」</div>'; return; }
+  const a=autoClassify(rec, curAutoZero()), cf=autoLevelConf(a.conf);
+  const NM={z:"零级",l1:"一级",l2:"二级",l3:"三级",l4:"四级"};
+  let rows="";
+  ["z","l1","l2","l3","l4"].forEach(k=>{
+    const o=a.out[k]||{code:"",name:""}, c=a.conf[k]||"NONE", t=CONF_TAG[c]||CONF_TAG.NONE;
+    rows+=`<tr><td>${NM[k]}</td><td class="erp">${esc(o.code)}</td><td>${esc(o.name||"—")}</td><td>${catConfChip(c)}</td></tr>`;
+  });
+  $("tryCatOut").innerHTML=`<div class="tbl-scroll" style="max-height:220px;margin-top:8px"><table><thead><tr>
+      <th>层级</th><th>码</th><th>名称</th><th>来源</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="note" style="margin-top:6px">判定依据：<b>${esc(a.src||"")}</b> · 整体置信 ${catConfChip(cf)}。若结果不对，改规则 CSV 的关键词/顺序，或往映射库里加这条物料。</div>`;
+};
+// ① 生成编码：按 图号/品名/规格/材质 自动填流水线
+$("btnAutoCat").onclick=()=>{
+  const rec={draw:$("inDraw").value.trim(),name:$("inName").value.trim(),spec:$("inSpec").value.trim(),mat:$("inMat").value.trim()};
+  if(!rec.name&&!rec.draw){ $("suggestArea").innerHTML='<div class="warnbox" style="margin:8px 0">先填「品名」或「图号」再点自动分类</div>'; return; }
+  const a=autoClassify(rec, curAutoZero());
+  refreshLevelCascade();
+  const miss=[];
+  const set=(id,code,nm)=>{ const s=$(id); if(!s) return; s.value=code||""; if(code&&s.value!==code) miss.push(nm+" "+code); refreshLevelCascade(); };
+  set("selZero",a.out.z.code,a.out.z.name); set("selL1",a.out.l1.code,a.out.l1.name); set("selL2",a.out.l2.code,a.out.l2.name);
+  set("selL3",a.out.l3.code,a.out.l3.name); set("selL4",a.out.l4.code,a.out.l4.name);
+  const chip=catConfChip(autoLevelConf(a.conf));
+  $("suggestArea").innerHTML=`<div class="analysis" style="margin:8px 0">已按 <b>${esc(a.src||"")}</b> 填入分类路径 ${chip}
+    ${miss.length?`<br><span style="color:var(--bad)">分类树里缺少 ${esc(miss.join("、"))}，请到「⑦ 智能分类」点「按库补全分类树」</span>`:""}</div>`;
+};
+renderCatStat();
 $("btnImportCsvCfg").onclick=()=>$("fileCsv").click();
 $("fileCsv").onchange=e=>{
   const f=e.target.files[0]; e.target.value=""; if(!f) return;
@@ -2574,6 +3025,12 @@ $("fileCfg").onchange=e=>{
   }catch(err){ alert("导入失败：文件格式不正确（需要当前格式的 erp分类配置.json）"); } };
   r.readAsText(f); e.target.value="";
 };
+// 全局默认零级：改了立即持久化，并把「本次零级」同步为同一个值（避免两处口径打架）
+$("selAutoZero").onchange=()=>{
+  AUTO_ZERO=$("selAutoZero").value||"";
+  saveAutoZero();
+  const b=$("selBatchZero"); if(b&&!b.value) b.value=AUTO_ZERO;
+};
 $("btnResetCfg").onclick=()=>{
   requirePwd(()=>{
     if(!confirm("将清空你的自定义，恢复到源表（data.js）默认分类？")) return;
@@ -2587,7 +3044,7 @@ $("inL5seed").onchange=()=>{
 
 // ============ 模块导航：点哪显示哪，记住上次所在模块 ============
 const NAV_KEY="erp_nav_v1";
-const PANELS=["pan1","resultPanel","pan3","pan4","pan5","pan6"];
+const PANELS=["pan1","resultPanel","pan3","pan4","pan5","pan6","pan7"];
 function showPanel(id,noSave){
   PANELS.forEach(p=>{ const el=$(p); if(el) el.style.display=(p===id)?"block":"none"; });
   document.querySelectorAll(".nav-item").forEach(b=>{
@@ -2678,6 +3135,8 @@ const DB = (function(){
               const k=p.new&&p.new.key, v=p.new&&p.new.value;
               if(k==="CFG" && v && v.lv){ CFG=v; if(typeof CFG.l5seed!=="number") CFG.l5seed=1; saveCFGLocal(); refreshAll(); }
               else if(k==="exOv" && v && typeof v==="object"){ exOv=v; saveExOvLocal(); applyExOv(); renderEx(); }
+              else if(k==="CATMAP" && Array.isArray(v)){ CATMAP=v; saveCatMapLocal(); renderCatStat(); }
+              else if(k==="CATRULE" && (Array.isArray(v)||v===null)){ CATRULE=v; if(v) saveCatRuleLocal(); else try{localStorage.removeItem(CATRULE_KEY);}catch(e){} renderCatStat(); }
             }catch(e){}
             setSync("已同步 · 实时");
           }).subscribe();
@@ -2700,6 +3159,10 @@ async function bootstrap(){
   if(cfg&&cfg.CFG&&cfg.CFG.lv){ CFG=cfg.CFG; if(typeof CFG.l5seed!=="number") CFG.l5seed=1; saveCFGLocal(); }
   else if(DB.enabled&&DB.user){ await DB.saveConfig("CFG",CFG); }   // 首用户把本地分类配置写入云端，团队共享
   if(cfg&&cfg.exOv&&typeof cfg.exOv==="object"){ exOv=cfg.exOv; }
+  if(cfg&&Array.isArray(cfg.CATMAP)&&cfg.CATMAP.length){ CATMAP=cfg.CATMAP; saveCatMapLocal(); }
+  else if(!CATMAP.length&&DB.enabled&&DB.user){ await DB.saveConfig("CATMAP",CATMAP); }
+  if(cfg&&Array.isArray(cfg.CATRULE)&&cfg.CATRULE.length){ CATRULE=cfg.CATRULE; saveCatRuleLocal(); }
+  renderCatStat();
   renderLog(); applyExOv(); saveExOvLocal(); renderEx("");
 }
 async function afterLogin(){
@@ -2865,6 +3328,279 @@ async function startApp(){
   }
   finishStart();   // 未配置 Supabase：本地模式，与原行为完全一致
 }
+
+// ============ ⑧ 试样单 → 易助 ERP（118 列转入文件）============
+// 易助「商品基本信息 TPADEA」转入模板共 118 列，靠**列序号**识别：不能删列、不能改列序。
+// 其中只有 29 列真正有值（发货号按用户要求留空则 28 列），其余留空占位。前两行是表头：第1行字段码(DEAxxx)，第2行中文列名。
+// 注意：118 列里有 6 个重名的「预留字段」（idx 51/52/54/55/56/57），全是空占位、本模块不写，
+//   DEA_IDX 按中文名建索引只会保留第一项，但这不影响任何导出目标列（已验证目标列全部不重名）。
+const DEA_HEAD_DEF="DEA001|品号/图号1;DEA036|图号2;DEA002|品名;DEA057|规格;DEA960|材料牌号;DEA961|物料发货号;DEA962|版本号;DEA003|库存单位;DEA044|采购单位;DEA078|销售单位;DEA005|商品分类;DEA006|会计分类;DEA007|预留(计算库存)=T;DEA008|主要仓库代号;DEA009|主要来源;DEA010|主供货商;DEA013|注销;DEA017|按需求补货;DEA030|领料码;DEA033|保税品;DEA043|售价含税;DEA046|最近进价含税;DEA049|进价控制;DEA051|单价上限含税;DEA052|售价控制;DEA055|批号管理;DEA056|成本计价方式;DEA073|指定主供应商;DEA074|存货核算;DEA077|免检;DEA032|税率;DEA083|超收管控;DEA004|条码编号;DEA011|循环盘点码;DEA012|库位;DEA014|注销日;DEA015|(预留)上次入库日;DEA016|(预留)上次出库日;DEA018|前置天数;DEA019|安全存量;DEA020|最低补量;DEA021|补货倍量;DEA022|标准进价;DEA023|最近进价(未税);DEA024|零售价;DEA025|定价一;DEA026|定价二;DEA027|定价三;DEA028|定价四;DEA029|低阶码;DEA031|商品描述;DEA034|预留字段;DEA035|预留字段;DEA037|备注;DEA038|预留字段;DEA039|预留字段;DEA040|预留字段;DEA041|预留字段;DEA042|(预留)领用倍量;DEA045|工艺路线编号;DEA047|人工分摊权数;DEA048|制费分摊权数;DEA050|单价上限;DEA053|单价下限;DEA054|指定BOM;DEA058|型号;DEA059|商品利润率;DEA060|标准材料;DEA061|标准人工;DEA062|标准制费;DEA063|委外加工费;DEA064|商品主保修期_年;DEA065|商品主保修期_月;DEA066|商品主保修期_天;DEA067|商品维修保修期_年;DEA068|商品维修保修期_月;DEA069|商品维修保修期_天;DEA070|选配属性一;DEA071|选配属性二;DEA072|选配属性三;DEA075|最近进价(含税);DEA076|生产部门;DEA079|条码格式编号;DEA080|税收政策编号;DEA081|开票品名;DEA082|开票规格;DEA084|超收率;DEA905|更新标记;DEA963|自定文字4;DEA964|自定文字5;DEA965|自定文字6;DEA966|自定文字7;DEA967|自定文字8;DEA968|自定文字9;DEA969|自定文字10;DEA970|自定文字11;DEA971|自定文字12;DEA972|自定文字13;DEA973|自定文字14;DEA974|自定文字15;DEA975|自定文字16;DEA980|自定数字1;DEA981|自定数字2;DEA982|自定数字3;DEA983|自定数字4;DEA984|自定数字5;DEA985|自定数字6;DEA986|自定数字7;DEA987|自定数字8;DEA988|自定数字9;DEA989|自定数字10;DEA990|自定数字11;DEA991|自定数字12;DEA992|自定数字13;DEA993|自定数字14;DEA994|自定数字15;DEA995|自定数字16;DEA979|单头二维码";
+const DEA_COLS=DEA_HEAD_DEF.split(";").map(p=>{ const a=p.split("|"); return {code:a[0],name:a[1]}; });
+const DEA_IDX={}; DEA_COLS.forEach((c,i)=>{ if(!(c.name in DEA_IDX)) DEA_IDX[c.name]=i; });
+// 样例里取值恒定的 18 列，直接写死（版本号虽也恒定 0.0，但试样单自带版本列，改走变量）
+const DEA_CONST=[["会计分类","001"],["预留(计算库存)=T","T"],["主要仓库代号","1"],["注销","F"],
+  ["按需求补货","T"],["领料码","B"],["保税品","F"],["售价含税","T"],["最近进价含税","T"],
+  ["进价控制","F"],["单价上限含税","T"],["售价控制","F"],["成本计价方式","2"],["指定主供应商","F"],
+  ["存货核算","F"],["免检","T"],["税率","0.13"],["超收管控","F"]];
+// 商品分类映射：一级|四级 -> 易助分类码。可编辑并存于 CFG.erpMap（云端同步）；
+// 查不到一律留空并在预览标红，绝不猜值，避免把错误分类写进 ERP 主数据。
+const ERPMAP_DEFAULT={"03|0":"0303","03|1":"0308","04|1":"0601"};
+function erpMap(){ return (CFG && CFG.erpMap) ? CFG.erpMap : ERPMAP_DEFAULT; }
+function erpCat(l1,l4){ const m=erpMap(); const v=m[String(l1||"")+"|"+String(l4||"")]; return v?String(v).trim():""; }
+function erpSrc(l4){ return String(l4||"").trim()==="0" ? "M" : "P"; }
+// 材质牌号推断：取「规格」开头的英文字母+数字组合；以中文或数字开头则匹配不到，填 "/"
+function guessMat(spec){
+  const s=String(spec==null?"":spec).trim();
+  const m=s.match(/^[A-Za-z][A-Za-z0-9]*/);
+  return m ? m[0] : "/";
+}
+const SAMPLE_ALIAS={
+  draw:["图号","件号","零件号","图号 / drawing no.","drawing no.","drawing"],
+  name:["品名","名称","物料名称","品名规格"],
+  ver:["版本","版本号"],
+  uqty:["单套用量","单套数量"],
+  spec:["规格","规格型号"],
+  qty:["用量","数量"],
+  unit:["单位","计量单位"],
+  mat:["材质牌号","材料牌号","材质","材料"]
+};
+function pickIdx(head,keys){
+  const h=head.map(s=>String(s==null?"":s).trim().toLowerCase());
+  for(const k of keys){ const i=h.indexOf(String(k).toLowerCase()); if(i>=0) return i; }
+  for(const k of keys){ const t=String(k).toLowerCase(); const i=h.findIndex(x=>x&&x.indexOf(t)>=0); if(i>=0) return i; }
+  return -1;
+}
+function erpMsg(html,kind){
+  const el=$("erpMsg"); if(!el) return;
+  el.innerHTML=`<div class="${kind==="ok"?"analysis":"warnbox"}" style="margin:8px 0">${html}</div>`;
+}
+// GBK / UTF-8 自动识别：Excel 另存的 CSV 多为 GBK，按 UTF-8 解会产生 U+FFFD 替换字符
+function decodeCsvBuf(buf){
+  let txt="", enc="UTF-8";
+  try{ txt=new TextDecoder("utf-8").decode(buf); }catch(e){ txt=""; }
+  if(txt.indexOf("\ufffd")>=0){
+    try{ const g=new TextDecoder("gbk").decode(buf); if(g.indexOf("\ufffd")<0){ txt=g; enc="GBK"; } }catch(e){}
+  }
+  return {txt:String(txt||"").replace(/^\ufeff/,""), enc:enc};
+}
+function fillErpZeroSel(){
+  const el=$("selErpZero"); if(!el) return;
+  const keep=String(el.value||"");
+  const opts=['<option value="">（自动判断）</option>'];
+  try{
+    const d=(typeof lvlDict==="function")?lvlDict("zero"):{};
+    Object.keys(d).sort().forEach(k=>{
+      const raw=d[k]; const n=(raw&&typeof raw==="object")?(raw.name||""):String(raw||"");
+      opts.push(`<option value="${esc(k)}">${esc(k+(n?"-"+n:""))}</option>`);
+    });
+  }catch(e){}
+  el.innerHTML=opts.join("");
+  const cur=(typeof curAutoZero==="function")?curAutoZero():"";
+  const want=keep||cur||"";
+  el.value=Array.prototype.some.call(el.options,o=>o.value===want)?want:"";
+}
+let erpRows=[], erpDup=[];
+function erpAnalyze(text,enc,fileName){
+  const fnEl=$("erpFileName"); if(fnEl) fnEl.textContent=fileName?`已载入：${esc(fileName)}（识别为 ${esc(enc)}）`:"";
+  const rows=parseCSV(text).filter(r=>r&&r.some(c=>String(c==null?"":c).trim()!==""));
+  if(rows.length<2){ erpRows=[]; erpDup=[]; erpRender(); erpMsg("没有数据行（需表头 + 至少一行）","warn"); return; }
+  const head=rows[0].map(s=>String(s==null?"":s).trim());
+  const I={}; Object.keys(SAMPLE_ALIAS).forEach(k=>{ I[k]=pickIdx(head,SAMPLE_ALIAS[k]); });
+  if(I.draw<0){ erpRows=[]; erpDup=[]; erpRender(); erpMsg("缺少「图号」列，请确认试样单表头（需含 图号/品名/规格/单位 等列）","warn"); return; }
+  const cell=(r,k)=>{ const i=I[k]; return i<0?"":String(r[i]==null?"":r[i]).trim(); };
+  const zo=(function(){ const el=$("selErpZero"); const v=el?String(el.value||"").trim():""; return v||((typeof curAutoZero==="function")?curAutoZero():""); })();
+  erpRows=[]; erpDup=[];
+  const seen={};
+  for(let i=1;i<rows.length;i++){
+    const r=rows[i], ln=i+1;
+    const draw=cell(r,"draw");
+    if(!draw) continue;
+    const key=norm(draw);
+    if(seen[key]){ erpDup.push({ln:ln,draw:draw,first:seen[key]}); continue; }   // 图号重复 → ERP 建档只能有一条
+    seen[key]=ln;
+    const name=cell(r,"name"), spec=cell(r,"spec");
+    let mat=cell(r,"mat"); if(!mat) mat=guessMat(spec);
+    const unit=cell(r,"unit");
+    let ver=cell(r,"ver"); if(!ver) ver="0.0";
+    let cls={out:{},conf:{}}, csrc="";
+    try{ cls=autoClassify({draw:draw,name:name,spec:spec,mat:mat}, zo); csrc=cls.src||""; }catch(e){ csrc="分类推断失败"; }
+    const g=k=>String(((cls.out||{})[k]||{}).code||"").trim();
+    const z={z:g("z"),l1:g("l1"),l2:g("l2"),l3:g("l3"),l4:g("l4")};
+    const conf=(typeof autoLevelConf==="function")?autoLevelConf(cls.conf||{}):"NONE";
+    const cat=erpCat(z.l1,z.l4);
+    erpRows.push({ln:ln,draw:draw,name:name,spec:spec,mat:mat,ver:ver,unit:unit,
+      uqty:cell(r,"uqty"),qty:cell(r,"qty"),z:z,
+      zpath:[z.z,z.l1,z.l2,z.l3,z.l4].filter(x=>x!=="").join("/"),
+      cat:cat,catMiss:!cat,src:erpSrc(z.l4),conf:conf,csrc:csrc,
+      erp:isRealDrawing(draw)?draw:"",written:false});
+  }
+  erpRender();
+}
+function erpRender(){
+  const el=$("erpArea"); if(!el) return;
+  if(!erpRows.length){ el.innerHTML=""; const st=$("erpStat"); if(st) st.innerHTML=""; return; }
+  const miss=erpRows.filter(r=>r.catMiss).length;
+  const noDraw=erpRows.filter(r=>!r.erp).length;
+  const bits=[`共 <b>${erpRows.length}</b> 条有效行`];
+  if(erpDup.length) bits.push(`按图号去重剔除 <b>${erpDup.length}</b> 条`);
+  if(miss) bits.push(`<b style="color:var(--bad)">商品分类未命中 ${miss} 条</b>`);
+  if(noDraw) bits.push(`<b style="color:var(--warn)">无有效图号 ${noDraw} 条（需到「①生成编码」走 13 位分类码）</b>`);
+  $("erpStat").innerHTML=bits.join(" · ");
+  let html=`<table class="lv-tbl"><thead><tr><th style="width:44px">行</th><th>图号 / ERP码</th><th>品名</th><th>规格</th><th style="width:60px">材质</th><th style="width:52px">单位</th><th style="width:48px">版本</th><th style="width:70px">商品分类</th><th style="width:44px">来源</th><th>分类依据</th></tr></thead><tbody>`;
+  erpRows.forEach(r=>{
+    const bg=r.catMiss?"background:var(--danger-soft,#fff5f5)":(r.erp?"":"background:#fffbe6");
+    const chip=(typeof catConfChip==="function")?catConfChip(r.conf):"";
+    html+=`<tr style="${bg}">
+      <td>${r.ln}</td>
+      <td><b>${esc(r.erp||"")}</b>${r.erp?"":`<span style="color:var(--bad)">无图号</span>`}</td>
+      <td>${esc(r.name)}</td>
+      <td>${esc(r.spec)}</td>
+      <td>${esc(r.mat)}</td>
+      <td>${esc(String(r.unit).toUpperCase())}</td>
+      <td>${esc(r.ver)}</td>
+      <td>${r.cat?esc(r.cat):`<b style="color:var(--bad)">未命中</b>`}</td>
+      <td>${esc(r.src)}</td>
+      <td class="ctx">${chip} <span class="muted">${esc(r.zpath)}</span> ${esc(r.csrc)}</td>
+    </tr>`;
+  });
+  html+="</tbody></table>";
+  if(erpDup.length){
+    html+=`<div class="note" style="margin-top:8px"><b>被剔除的重复图号</b>：${erpDup.map(d=>`第${d.ln}行（${esc(d.draw)}，同第${d.first}行）`).join("、")}</div>`;
+  }
+  html+=`<div class="btnrow" style="margin-top:10px">
+    <button class="primary sm" id="btnErpWrite">写入台账</button>
+    <span class="muted">写入后可到「③ 编码台账」查看；导出不必先写入</span>
+  </div>`;
+  el.innerHTML=html;
+  const wb=$("btnErpWrite"); if(wb) wb.onclick=erpWrite;
+}
+function erpWrite(){
+  if(!erpRows.length){ erpMsg("没有可写入的数据","warn"); return; }
+  const todo=erpRows.filter(r=>r.erp);
+  if(!todo.length){ erpMsg("没有带有效图号的行；无图号/图号含中文的物料请到「①生成编码」处理","warn"); return; }
+  let add=0,ovw=0;
+  todo.forEach(r=>{
+    const reason=`试样单第${r.ln}行：检测到有效图号「${r.draw}」→ 按「图号即码」规则直接取图号作为 ERP 码（不参与五级流水）`;
+    let exIdx=-1;
+    for(let i=0;i<log.length;i++){ if(log[i].erp_code===r.erp){ exIdx=i; break; } }
+    if(exIdx<0){ const d=norm(r.draw); for(let i=0;i<log.length;i++){ if(norm(log[i].drawing||"")===d){ exIdx=i; break; } } }
+    if(exIdx>=0){
+      const o=log[exIdx];
+      o.drawing=r.draw; o.name=r.name; o.spec=r.spec; o.mat=r.mat;
+      o.ver=r.ver; o.unit=r.unit;
+      o.action="新建"; o.action_reason=reason; o.record_time=nowStamp();
+      ovw++;
+    }else{
+      const out=makeRecord(r.z.z,r.z.l1,r.z.l2,r.z.l3,r.z.l4,"","新建",reason,[],r.draw,"drawing");
+      log.push(Object.assign({},out,{name:r.name,spec:r.spec,mat:r.mat,drawing:r.draw,ver:r.ver,unit:r.unit}));
+      add++;
+    }
+    r.written=true;
+  });
+  saveLog(); renderLog(); renderEx();
+  let msg=`已写入台账 新增 <b>${add}</b> 条`+(ovw?`，覆盖更新 <b>${ovw}</b> 条`:"");
+  const miss=todo.filter(r=>r.catMiss).length;
+  if(miss) msg+=`；<b style="color:var(--bad)">其中 ${miss} 条商品分类未命中映射表，已照常写入但分类信息不全</b>`;
+  erpMsg(msg,"ok");
+  erpRender();
+}
+$("btnErpExp").onclick=()=>{
+  const todo=erpRows.filter(r=>r.erp);
+  if(!todo.length){ erpMsg("没有可导出的行，请先上传试样单","warn"); return; }
+  const miss=todo.filter(r=>r.catMiss).length;
+  if(miss && !confirm(`${miss} 行的「商品分类」未在映射表中，导出后该列会留空。\n留空行在易助里需手工补，建议先去「商品分类映射表」补规则。\n\n是否仍要继续导出？`)) return;
+  const put=(a,nm,v)=>{ const i=DEA_IDX[nm]; if(i!==undefined) a[i]=String(v==null?"":v); };
+  const lines=[DEA_COLS.map(c=>c.code), DEA_COLS.map(c=>c.name)];
+  todo.forEach(r=>{
+    const a=new Array(DEA_COLS.length).fill("");
+    put(a,"品号/图号1",r.erp);
+    put(a,"品名",r.name);
+    put(a,"规格",r.spec);
+    put(a,"材料牌号",r.mat);
+    put(a,"版本号",r.ver);
+    const u=String(r.unit||"").trim().toUpperCase();
+    put(a,"库存单位",u); put(a,"采购单位",u); put(a,"销售单位",u);
+    put(a,"商品分类",r.cat);
+    put(a,"主要来源",r.src);
+    DEA_CONST.forEach(p=>put(a,p[0],p[1]));
+    lines.push(a);
+  });
+  const csv=lines.map(line=>line.map(v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`).join(",")).join("\r\n");
+  download(`易助转入_${fileStamp()}.csv`,"\ufeff"+csv,"text/csv");
+  erpMsg(`已导出 <b>${todo.length}</b> 条 × <b>${DEA_COLS.length}</b> 列${miss?`（其中 ${miss} 条商品分类留空）`:""}`, "ok");
+};
+$("fileSample").onchange=e=>{
+  const f=e.target.files&&e.target.files[0]; if(!f) return;
+  const fr=new FileReader();
+  fr.onload=()=>{
+    try{
+      const buf=fr.result;
+      const d=decodeCsvBuf(new Uint8Array(buf));
+      erpAnalyze(d.txt,d.enc,f.name);
+      const total=erpRows.length, dup=erpDup.length, miss=erpRows.filter(r=>r.catMiss).length;
+      let m=`已识别 <b>${esc(d.enc)}</b> 编码，共 <b>${total}</b> 条有效行`;
+      if(dup) m+=`，去重剔除 <b>${dup}</b> 条`;
+      if(miss) m+=`，<b style="color:var(--bad)">商品分类未命中 ${miss} 条</b>`;
+      erpMsg(m+(miss?"<br>请在下方标红行核对，或到「商品分类映射表」补规则。":""), miss?"warn":"ok");
+    }catch(err){ erpMsg("解析失败："+esc(err&&err.message||err),"warn"); }
+  };
+  fr.onerror=()=>erpMsg("读取文件失败","warn");
+  fr.readAsArrayBuffer(f);
+  e.target.value="";
+};
+$("btnErpMapEdit").onclick=()=>{
+  const box=$("erpMapBox"); if(!box) return;
+  if(box.style.display!=="none"){ box.style.display="none"; return; }
+  const m=erpMap();
+  const lines=Object.keys(m).sort().map(k=>`${k}=${m[k]}`);
+  box.style.display="block";
+  box.innerHTML=`<div style="border:1px solid var(--line);border-radius:8px;padding:12px;margin-top:10px;background:var(--chip)">
+    <h3 style="margin:0 0 6px">商品分类映射（一级|四级 = 易助分类码）</h3>
+    <div class="note" style="margin-bottom:8px">一行一条，格式 <code>一级码|四级码=商品分类码</code>，如 <code>03|0=0303</code>。<br>
+      已知取值：<code>0303</code>=成品+自制件，<code>0308</code>=成品+采购件，<code>0601</code>=标准件+采购件。<br>
+      查不到的组合一律<b>留空并标红</b>，系统不会猜值。</div>
+    <textarea id="erpMapTx" rows="9" style="width:100%;font-family:monospace;font-size:12px;box-sizing:border-box">${esc(lines.join("\n"))}</textarea>
+    <div id="erpMapErr" class="warnbox" style="display:none;margin-top:6px"></div>
+    <div class="btnrow" style="margin-top:8px">
+      <button class="primary sm" id="erpMapSave">保存</button>
+      <button class="ghost sm" id="erpMapCancel">取消</button>
+      <button class="ghost sm" id="erpMapReset">恢复默认</button>
+    </div></div>`;
+  const errEl=$("erpMapErr");
+  const applyLines=(txt)=>{
+    const out={}, bad=[];
+    txt.split(/\r?\n/).forEach(raw=>{
+      const s=String(raw||"").trim(); if(!s) return;
+      const p=s.split("="); if(p.length<2){ bad.push(s); return; }
+      const key=String(p[0]).trim(), val=String(p.slice(1).join("=")).trim();
+      const kp=key.split("|");
+      if(kp.length<2 || !val){ bad.push(s); return; }
+      out[kp[0].trim()+"|"+kp[1].trim()]=val;
+    });
+    return {out:out,bad:bad};
+  };
+  $("erpMapSave").onclick=()=>{
+    const r=applyLines($("erpMapTx").value);
+    if(r.bad.length){ errEl.style.display="block"; errEl.innerHTML="以下行格式不对，应为 <code>一级|四级=值</code>：<br>"+r.bad.map(esc).join("<br>"); return; }
+    if(!Object.keys(r.out).length){ errEl.style.display="block"; errEl.innerHTML="映射表不能为空"; return; }
+    CFG.erpMap=r.out; saveCFG();
+    // 用新映射重算一次（不重新解析文件），保证预览与导出立即生效
+    erpRows.forEach(x=>{ x.cat=erpCat(x.z.l1,x.z.l4); x.catMiss=!x.cat; });
+    erpRender();
+    box.style.display="none";
+    erpMsg(`映射表已保存（${Object.keys(r.out).length} 条），已随云端同步`,"ok");
+  };
+  $("erpMapCancel").onclick=()=>{ box.style.display="none"; };
+  $("erpMapReset").onclick=()=>{
+    delete CFG.erpMap; saveCFG();
+    erpRows.forEach(x=>{ x.cat=erpCat(x.z.l1,x.z.l4); x.catMiss=!x.cat; });
+    erpRender(); box.style.display="none";
+    erpMsg("已恢复默认映射（0303 / 0308 / 0601）","ok");
+  };
+};
+fillErpZeroSel();
+$("selErpZero").onchange=()=>{ if(erpRows.length) erpRender(); };
+
 startApp();
 </script>
 <div class="modal-mask" id="pwdModal">
