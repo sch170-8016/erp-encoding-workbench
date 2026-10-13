@@ -323,8 +323,8 @@
       <svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M1 14h6M9 8h6M17 16h6"/></svg>分类管理</button>
     <button class="nav-item" data-panel="pan7" title="智能分类">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><path d="M5 5l3 3M16 16l3 3M19 5l-3 3M8 16l-3 3"/></svg>智能分类</button>
-    <button class="nav-item" data-panel="pan8" title="试样单转易助商品">
-      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>试样单→易助商品</button>
+    <button class="nav-item" data-panel="pan8" title="试样单转ERP商品信息">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>试样单→ERP商品信息</button>
     <div class="side-note">点左侧切换模块，一次只显示一个，页面不再拉长</div>
   </nav>
 
@@ -528,17 +528,42 @@
   </div>
 
   <div class="panel" id="pan8">
-    <h2>⑧ 试样单 → 易助商品基本信息</h2>
-    <div class="note">上传试样单 CSV，系统自动补齐<b>材质牌号</b>、<b>零~四级分类</b>、<b>易助商品分类与来源</b>，规范去重后写入台账，并导出易助可直读的 <b>118 列转入文件</b>。<br>
-      兼容 <b>UTF-8 与 GBK</b> 两种编码（Excel 另存的 CSV 多为 GBK，会自动识别）。默认表头：<code>序号,图号,品名,版本,单套用量,规格,用量,单位</code>，按<b>列名</b>识别，列序不同也能读。</div>
+    <h2>⑧ 试样单 → ERP 商品信息</h2>
+    <div class="note">上传试样单 CSV，系统自动补齐<b>材质牌号</b>、<b>零~四级分类</b>、<b>ERP 商品分类与来源</b>，规范去重后写入台账，并导出可直读的 <b>118 列 ERP 商品信息转入文件</b>。<br>
+      兼容 <b>UTF-8 与 GBK</b> 两种编码（Excel 另存的 CSV 多为 GBK，会自动识别）。默认表头：<code>序号,图号,品名,版本,单套用量,规格,用量,单位</code>，按<b>列名</b>识别，列序不同也能读；没把握就先点<b>「下载试样单模板」</b>照着填。</div>
 
     <div class="btnrow" style="margin:10px 0 8px">
+      <button class="ghost sm" id="btnErpTpl">下载试样单模板</button>
+      <span style="width:1px;height:20px;background:var(--line);align-self:center"></span>
       <input type="file" id="fileSample" accept=".csv,.txt">
       <span style="width:1px;height:20px;background:var(--line);align-self:center"></span>
       <button class="ghost sm" id="btnErpMapEdit">商品分类映射表</button>
-      <button class="ghost sm" id="btnErpExp">导出易助商品 CSV</button>
+      <button class="ghost sm" id="btnErpExp">导出 ERP 商品信息 CSV</button>
       <span class="muted" id="erpFileName"></span>
     </div>
+
+    <details style="margin:0 0 10px">
+      <summary class="muted" style="cursor:pointer">试样单模板怎么填？（点开看逐列说明与样例）</summary>
+      <div style="overflow-x:auto;margin-top:8px">
+        <table class="lv-tbl">
+          <thead><tr><th>列</th><th>必填</th><th>填什么</th><th>样例</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td>序号</td><td class="muted">否</td><td>行号</td><td>1</td><td>可留空，不参与生成</td></tr>
+            <tr><td><b>图号</b></td><td><b>是</b></td><td>零件图号 / 件号</td><td>FLX1002766</td><td><b>不含中文</b>才算图号 → ERP 码直接取图号；<b>留空</b>则本行不导出，需去「①生成编码」走 13 位分类码</td></tr>
+            <tr><td><b>品名</b></td><td><b>是</b></td><td>物料名称</td><td>输送链护罩</td><td>写入台账与 ERP 的品名</td></tr>
+            <tr><td>版本</td><td class="muted">否</td><td>版本号</td><td>1.0</td><td>留空自动补 <code>0.0</code></td></tr>
+            <tr><td>单套用量</td><td class="muted">否</td><td>数字</td><td>2</td><td><b>不导出</b>：属 BOM 表，ERP 商品信息表无此列</td></tr>
+            <tr><td><b>规格</b></td><td><b>是</b></td><td>规格描述</td><td>Q235A t=3.0</td><td><b>材质牌号由此推断</b>：取开头的英文字母+数字，故请以牌号开头</td></tr>
+            <tr><td>用量</td><td class="muted">否</td><td>数字</td><td>2</td><td>同「单套用量」，<b>不导出</b></td></tr>
+            <tr><td><b>单位</b></td><td><b>是</b></td><td>计量单位</td><td>PCS / kg</td><td>导出时自动转大写（kg → KG）</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note" style="margin-top:6px">
+        <b>实测规律</b>：填写时把<b>材质牌号放在规格最前面</b>，推断最准（<code>Z80镀锌板T=1.0</code> → <code>Z80</code>、<code>PE灰 T5*122</code> → <code>PE</code>、<code>Q235A t=3.0</code> → <code>Q235A</code>）。
+        若以中文或纯数字开头（如 <code>45#钢</code>、<code>304不锈钢</code>），推断不到，材质会填 <code>/</code>，可在模板里补一列<b>材质牌号</b>直接指定。
+      </div>
+    </details>
 
     <div class="row" style="margin:0 0 10px">
       <div style="flex:0 0 250px;min-width:250px">
@@ -560,7 +585,7 @@
       ③ <b>商品分类</b>：由「一级 + 四级」组合查映射表得出；<b>查不到的一律留空并在预览里标红</b>，绝不猜值。<br>
       ④ <b>主要来源</b>：四级 <code>0-自制件</code> → <code>M</code>，<code>1-采购件</code> → <code>P</code>。<br>
       ⑤ <b>物料发货号</b>：按你的要求<b>全部留空</b>。<br>
-      ⑥ 导出的 <code>用量 / 单套用量</code> <b>不会</b>进入易助商品基本信息表（那里没有对应列，用量属于 BOM 表）。
+      ⑥ 导出的 <code>用量 / 单套用量</code> <b>不会</b>进入 ERP 商品信息表（那里没有对应列，用量属于 BOM 表）。
     </div>
   </div>
 
@@ -969,7 +994,7 @@ function makeRecord(z,l1,l2,l3,l4,l5,action,reason,missing,drawing,codeType){
     : {zero:z,level1:l1,level2:l2,level3:l3,level4:l4,level5:l5};
   const checks=isDraw
     ? [["① 图号即码（不含中文）", isRealDrawing(erp)],
-       ["② 长度 ≤20（易助上限）", erp.length>0 && erp.length<=20],
+       ["② 长度 ≤20（ERP 上限）", erp.length>0 && erp.length<=20],
        ["③ 图号唯一性已核查", true],
        ["④ 新建/复用依据明确", reason.length>0]]
     : [["① 13位纯数字", erp.length===13 && /^\d{13}$/.test(erp)],
@@ -1758,7 +1783,7 @@ $("btnBatchTpl").onclick=()=>{
 };
 $("btnBatchImport").onclick=()=>$("fileBatch").click();
 // 版本标记：改动后请同步更新此串，方便一眼确认浏览器加载的是不是最新页面（防 file:// 缓存）
-const APP_VER="2026-10-14 01:10 · 双轨编码 + ⑧试样单→易助商品 + 自查修复（下拉刷新/零级重算/空图号上报/编码识别统一）";
+const APP_VER="2026-10-14 01:25 · 双轨编码 + ⑧试样单→ERP商品信息 + 试样单模板下载 + 写入台账加锁";
 if($("verTag")) $("verTag").textContent="v"+APP_VER;
 $("fileBatch").onchange=e=>{
   const f=e.target.files[0]; e.target.value=""; if(!f) return;
@@ -3326,7 +3351,7 @@ async function startApp(){
   finishStart();   // 未配置 Supabase：本地模式，与原行为完全一致
 }
 
-// ============ ⑧ 试样单 → 易助商品基本信息（118 列转入文件）============
+// ============ ⑧ 试样单 → ERP 商品信息（118 列转入文件，模板源自易助 TPADEA）============
 // 易助「商品基本信息 TPADEA」转入模板共 118 列，靠**列序号**识别：不能删列、不能改列序。
 // 其中只有 29 列真正有值（发货号按用户要求留空则 28 列），其余留空占位。前两行是表头：第1行字段码(DEAxxx)，第2行中文列名。
 // 注意：118 列里有 6 个重名的「预留字段」（idx 51/52/54/55/56/57），全是空占位、本模块不写，
@@ -3502,16 +3527,36 @@ function erpRender(){
   el.innerHTML=html;
   const wb=$("btnErpWrite"); if(wb) wb.onclick=erpWrite;
 }
+// 在台账里定位与「本行试样单」同件的记录：先按 ERP 码精确找，再按图号归一化找（大小写/空格差异）
+function erpFindIdx(r){
+  for(let i=0;i<log.length;i++){ if(log[i].erp_code===r.erp) return i; }
+  const d=norm(r.draw);
+  for(let i=0;i<log.length;i++){ if(norm(log[i].drawing||"")===d) return i; }
+  return -1;
+}
+// 写入台账属敏感操作：会覆盖同名 ERP 码的既有记录，故与其它 9 个入口一致走 requirePwd。
+// 顺序刻意为「先密码 → 再算覆盖明细 → 再 confirm」：密码不对不弹确认，覆盖条数先讲清楚才动手。
 function erpWrite(){
   if(!erpRows.length){ erpMsg("没有可写入的数据","warn"); return; }
   const todo=erpRows.filter(r=>r.erp);
   if(!todo.length){ erpMsg("没有带有效图号的行；无图号/图号含中文的物料请到「①生成编码」处理","warn"); return; }
+  requirePwd(()=>{
+    let add=0,ovw=0;
+    todo.forEach(r=>{ erpFindIdx(r)>=0 ? ovw++ : add++; });
+    if(ovw && !confirm(
+      `本次将向台账写入 ${todo.length} 条：\n`+
+      `  新增 ${add} 条\n`+
+      `  覆盖更新 ${ovw} 条\n\n`+
+      `「覆盖更新」会把台账里同名 ERP 码的旧记录整条换成试样单的数据`+
+      `（品名 / 规格 / 材质 / 版本 / 单位）。\n确定继续？`)) return;
+    erpWriteDo(todo);
+  });
+}
+function erpWriteDo(todo){
   let add=0,ovw=0;
   todo.forEach(r=>{
     const reason=`试样单第${r.ln}行：检测到有效图号「${r.draw}」→ 按「图号即码」规则直接取图号作为 ERP 码（不参与五级流水）`;
-    let exIdx=-1;
-    for(let i=0;i<log.length;i++){ if(log[i].erp_code===r.erp){ exIdx=i; break; } }
-    if(exIdx<0){ const d=norm(r.draw); for(let i=0;i<log.length;i++){ if(norm(log[i].drawing||"")===d){ exIdx=i; break; } } }
+    const exIdx=erpFindIdx(r);
     if(exIdx>=0){
       const o=log[exIdx];
       o.drawing=r.draw; o.name=r.name; o.spec=r.spec; o.mat=r.mat;
@@ -3532,18 +3577,36 @@ function erpWrite(){
   erpMsg(msg,"ok");
   erpRender();
 }
+// 试样单模板：8 列默认表头 + 5 行典型样例，行本身就是示例答案——下载后照着样子填即可。
+//  行1 标准件     行2 字母图号     行3 规格以牌号开头     行4 用量不为 1     行5 图号留空（走①生成编码的 13 位分类码，不进本面板导出）
+//  行5 故意留空图号（演示无图号物料：不进本面板导出，需去「①生成编码」走 13 位分类码）
+const SMPL_HEAD=["序号","图号","品名","版本","单套用量","规格","用量","单位"];
+const SMPL_ROWS=[
+  ["1","2701801507","左安装板","1.0","2","Q235A t=3.0","2","PCS"],
+  ["2","FLX1002766","输送链护罩","1.0","1","SUS304 T1.5","1","PCS"],
+  ["3","3925673","传动轴头","1.0","1","Q345B φ20×180","1","PCS"],
+  ["4","5115941","六角螺栓 M8×25","1.0","4","SCM435 发黑","4","PCS"],
+  ["5","","PE 包装袋","1.0","1","PE膜 170×120×0.18","1","PCS"]
+];
+$("btnErpTpl").onclick=()=>{
+  const lines=[SMPL_HEAD].concat(SMPL_ROWS);
+  const csv=lines.map(line=>line.map(v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`).join(",")).join("\r\n");
+  // UTF-8 BOM + CRLF：Excel 双击打开不乱码，也能被 decodeCsvBuf 正确判为 UTF-8
+  download(`试样单模板_${fileStamp()}.csv`,"\ufeff"+csv,"text/csv");
+  erpMsg("已下载模板：请把 5 行<b>样例</b>替换成自己的数据（<b>保留表头行</b>），存盘后在本面板上传即可。注意最后一行故意<b>留空图号</b>，演示无图号物料的处理。","ok");
+};
 $("btnErpExp").onclick=()=>{
   const todo=erpRows.filter(r=>r.erp);
   if(!todo.length){ erpMsg("没有可导出的行，请先上传试样单","warn"); return; }
   const miss=todo.filter(r=>r.catMiss).length;
-  if(miss && !confirm(`${miss} 行的「商品分类」未在映射表中，导出后该列会留空。\n留空行在易助里需手工补，建议先去「商品分类映射表」补规则。\n\n是否仍要继续导出？`)) return;
+  if(miss && !confirm(`${miss} 行的「商品分类」未在映射表中，导出后该列会留空。\n留空行需在 ERP 里手工补，建议先去「商品分类映射表」补规则。\n\n是否仍要继续导出？`)) return;
   const put=(a,nm,v)=>{ const i=DEA_IDX[nm]; if(i!==undefined) a[i]=String(v==null?"":v); };
   // 导出前自检：任一目标列名在 118 列表头里找不到，说明列名写错。宁可中止报错，
   // 也不能让值被静默丢在空列里——那会导出一个看着正常、实则缺列的坏文件。
   const targets=["品号/图号1","品名","规格","材料牌号","版本号","库存单位","采购单位","销售单位","商品分类","主要来源"]
     .concat(DEA_CONST.map(p=>p[0]));
   const lost=targets.filter(n=>DEA_IDX[n]===undefined);
-  if(lost.length){ erpMsg(`导出已中止：以下列名在 118 列表头中找不到 → <b>${lost.map(esc).join("、")}</b>。请检查列名常量是否与易助模板一致。`, "warn"); return; }
+  if(lost.length){ erpMsg(`导出已中止：以下列名在 118 列表头中找不到 → <b>${lost.map(esc).join("、")}</b>。请检查列名常量是否与 ERP 商品信息模板一致。`, "warn"); return; }
   const lines=[DEA_COLS.map(c=>c.code), DEA_COLS.map(c=>c.name)];
   todo.forEach(r=>{
     const a=new Array(DEA_COLS.length).fill("");
@@ -3560,7 +3623,7 @@ $("btnErpExp").onclick=()=>{
     lines.push(a);
   });
   const csv=lines.map(line=>line.map(v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`).join(",")).join("\r\n");
-  download(`易助商品转入_${fileStamp()}.csv`,"\ufeff"+csv,"text/csv");
+  download(`ERP商品信息转入_${fileStamp()}.csv`,"\ufeff"+csv,"text/csv");
   erpMsg(`已导出 <b>${todo.length}</b> 条 × <b>${DEA_COLS.length}</b> 列${miss?`（其中 ${miss} 条商品分类留空）`:""}`, "ok");
 };
 $("fileSample").onchange=e=>{
@@ -3589,7 +3652,7 @@ $("btnErpMapEdit").onclick=()=>{
   const lines=Object.keys(m).sort().map(k=>`${k}=${m[k]}`);
   box.style.display="block";
   box.innerHTML=`<div style="border:1px solid var(--line);border-radius:8px;padding:12px;margin-top:10px;background:var(--chip)">
-    <h3 style="margin:0 0 6px">商品分类映射（一级|四级 = 易助分类码）</h3>
+    <h3 style="margin:0 0 6px">商品分类映射（一级|四级 = ERP 商品分类码）</h3>
     <div class="note" style="margin-bottom:8px">一行一条，格式 <code>一级码|四级码=商品分类码</code>，如 <code>03|0=0303</code>。<br>
       已知取值：<code>0303</code>=成品+自制件，<code>0308</code>=成品+采购件，<code>0601</code>=标准件+采购件。<br>
       查不到的组合一律<b>留空并标红</b>，系统不会猜值。</div>
