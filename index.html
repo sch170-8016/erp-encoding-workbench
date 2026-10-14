@@ -530,7 +530,8 @@
   <div class="panel" id="pan8">
     <h2>⑧ 试样单 → ERP 商品信息</h2>
     <div class="note">上传试样单 CSV，系统自动补齐<b>材质牌号</b>、<b>零~四级分类</b>、<b>ERP 商品分类与来源</b>，规范去重后写入台账，并导出可直读的 <b>118 列 ERP 商品信息转入文件</b>。<br>
-      兼容 <b>UTF-8 与 GBK</b> 两种编码（Excel 另存的 CSV 多为 GBK，会自动识别）。默认表头：<code>序号,图号,品名,版本,单套用量,规格,用量,单位</code>，按<b>列名</b>识别，列序不同也能读；没把握就先点<b>「下载试样单模板」</b>照着填。</div>
+      兼容 <b>UTF-8 与 GBK</b> 两种编码（Excel 另存的 CSV 多为 GBK，会自动识别）。默认表头：<code>序号,图号,品名,版本,单套用量,规格,用量,单位</code>，按<b>列名</b>识别，列序不同也能读；没把握就先点<b>「下载试样单模板」</b>照着填。<br>
+      <b>易助 ERP 不接受下划线「_」</b>：图号、品名、规格等文本里的「_」会在导入与导出时<b>自动换成「-」</b>（如 <code>0000028063_AF44</code> → <code>0000028063-AF44</code>），台账、预览、导出文件三处同口径。</div>
 
     <div class="btnrow" style="margin:10px 0 8px">
       <button class="ghost sm" id="btnErpTpl">下载试样单模板</button>
@@ -634,7 +635,7 @@ const BUILD_AT = "2026-10-10";
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const norm = s => (s||"").toLowerCase().replace(/\s+/g,"").replace(/[×x*]/g,"x");
+const norm = s => (s||"").toLowerCase().replace(/\s+/g,"").replace(/[×x*]/g,"x").replace(/_/g,"-");
 
 // ============ 数据模型：六级统一树（零~四级可自定义，五级自动流水） ============
 // 每个节点: { name, diff?, note?, children: { code -> node } }
@@ -888,8 +889,8 @@ function getPathNames(z,l1,l2,l3,l4,l5){
 let lastSuggest=null;
 $("btnSuggest").onclick=()=>{
   const z=$("selZero").value, l1=$("selL1").value, l2=$("selL2").value, l3=$("selL3").value, l4=$("selL4").value;
-  const name=$("inName").value.trim(), spec=$("inSpec").value.trim(), mat=$("inMat").value.trim();
-  const draw=$("inDraw").value.trim();
+  const name=erpSafeTrim($("inName").value), spec=erpSafeTrim($("inSpec").value), mat=erpSafeTrim($("inMat").value);
+  const draw=erpSafeTrim($("inDraw").value);
   const area=$("suggestArea");
   if(!z||!l1||!l2||!l3||!l4){ area.innerHTML='<div class="warnbox">请先选齐 零级 / 一级 / 二级 / 三级 / 四级（五级可留空走自动流水，也可手动指定）。</div>'; return; }
   const miss=[];
@@ -976,6 +977,13 @@ $("btnSuggest").onclick=()=>{
   $("btnConfirm").onclick=confirmAction;
 };
 
+// ============ ERP 非法字符清洗：「_」 → 「-」 ============
+// 易助 ERP 导入不接受下划线，凡是要进 ERP 的文本（ERP码/图号/品名/规格/材质/版本/单位）
+// 一律把 "_" 换成 "-"。入口（单条录入 / 批量导入 / 试样单解析）与出口（导出）各做一次：
+// 入口清洗保证台账里存的码就是最终码，出口清洗兜住历史数据与手工改动，
+// 两者一致才不会出现「台账里带下划线、导进 ERP 却被拒」。
+function erpSafe(v){ return String(v==null?"":v).replace(/_/g,"-"); }
+function erpSafeTrim(v){ return erpSafe(v).trim(); }
 // ============ 图号即码：真图号判定 ============
 // 真图号 = 不含中文/全角字符的编码串（5115941 / 3925673 / 2701801507 / FLX1002766）；
 // 含中文的一律视为「非图号」（标签202 / 纸板300x250），走 13 位分类编码。
@@ -987,6 +995,8 @@ function isRealDrawing(d){
 // 仅生成「记录对象」，不碰任何 UI —— 供批量写入等不需要切页面的场景复用
 // codeType: "drawing"=图号即码（erp=图号原样，不参与五级流水）；"category"=13 位六层分类码
 function makeRecord(z,l1,l2,l3,l4,l5,action,reason,missing,drawing,codeType){
+  // ERP 不接受 "_"：图号先清洗再成码，台账里的 erp_code / drawing 与导出文件天然同一份
+  drawing=erpSafeTrim(drawing);
   // 防御：标了 drawing 却没有图号（异常调用）时，回落成分类码，绝不产出空 ERP 码
   codeType=(codeType==="drawing" && !!String(drawing==null?"":drawing).trim())?"drawing":"category";
   const isDraw=codeType==="drawing";
@@ -1179,14 +1189,15 @@ $("btnClearLog").onclick=()=>{
 };
 $("btnExportJson").onclick=()=>{
   if(!log.length){ logMsg("台账为空，无可导出内容"); return; }
-  download(`erp编码台账_${fileStamp()}.json`,JSON.stringify(log,null,2),"application/json");
+  download(`erp编码台账-${fileStamp()}.json`,JSON.stringify(log,null,2),"application/json");
   logMsg(`已导出 ${log.length} 条 JSON`);
 };
 $("btnExportCsv").onclick=()=>{
   if(!log.length){ logMsg("台账为空，无可导出内容"); return; }
   const head=["record_time","erp_code","code_type","drawing","category_path","action","name","spec","mat","ver","unit","action_reason"];
-  const rows=log.map(o=>head.map(h=>`"${String(o[h]==null?"":o[h]).replace(/"/g,'""')}"`).join(","));
-  download(`erp编码台账_${fileStamp()}.csv`,"\ufeff"+head.join(",")+"\n"+rows.join("\n"),"text/csv");
+  // 列名保留英文（批量导入按列名定位，不能动）；值里的 "_" 换成 "-"，与 ERP 口径一致
+  const rows=log.map(o=>head.map(h=>`"${erpSafe(o[h]).replace(/"/g,'""')}"`).join(","));
+  download(`erp编码台账-${fileStamp()}.csv`,"\ufeff"+head.join(",")+"\n"+rows.join("\n"),"text/csv");
   logMsg(`已导出 ${log.length} 条 CSV`);
 };
 // 多标签页同步：别处增删后本页自动跟随
@@ -1289,7 +1300,9 @@ function loadCatLocal(){
 }
 function saveCatMapLocal(){ try{ localStorage.setItem(CATMAP_KEY,JSON.stringify(CATMAP)); }catch(e){} }
 function saveCatRuleLocal(){ try{ if(CATRULE) localStorage.setItem(CATRULE_KEY,JSON.stringify(CATRULE)); else localStorage.removeItem(CATRULE_KEY); }catch(e){} }
-function normCat(s){ return String(s==null?"":s).replace(/\s+/g,"").toUpperCase(); }
+// 与 norm 同口径：ERP 不接受 "_"，比对时把 "_" 视作 "-"。
+// 这样「映射库里存的是 ABC_123、试样单清洗成 ABC-123」仍能命中，不会因为口径不一而丢匹配。
+function normCat(s){ return String(s==null?"":s).replace(/\s+/g,"").replace(/_/g,"-").toUpperCase(); }
 function catRules(){ return (Array.isArray(CATRULE)&&CATRULE.length)?CATRULE:CATRULE_DEFAULT; }
 const RULE_LV={"零级":"z","一级":"l1","二级":"l2","三级":"l3","四级":"l4"};
 const RULE_LVCN=["零级","一级","二级","三级","四级"];
@@ -1297,10 +1310,12 @@ const RULE_DEF={z:{code:"01",name:"富耐连"},l1:{code:"03",name:"成品"},l2:{
 function ruleMatch(rec,r){
   const f=String(r.f||"ANY").toUpperCase(), op=String(r.op||"IN").toUpperCase(), kw=String(r.kw||"");
   const src={DRAW:rec.draw,NAME:rec.name,SPEC:rec.spec,MAT:rec.mat};
-  const t=(f==="ANY"?[rec.draw,rec.name,rec.spec,rec.mat].join(" "):String(src[f]||"")).toUpperCase();
-  if(op==="EQ") return t===kw.toUpperCase();
-  if(op==="IN") return kw.split(/\s+/).filter(Boolean).some(k=>t.indexOf(k.toUpperCase())>=0);
-  if(op==="RE"){ try{ return new RegExp(kw,"i").test(t); }catch(e){ return false; } }
+  // 两边都做 "_"→"-"：规则关键词写 "_"、数据已清洗成 "-" 时仍能匹配（ERP 口径统一）
+  const dash=s=>String(s==null?"":s).replace(/_/g,"-");
+  const t=(f==="ANY"?[rec.draw,rec.name,rec.spec,rec.mat].join(" "):String(src[f]||"")).toUpperCase().replace(/_/g,"-");
+  if(op==="EQ") return t===dash(kw).toUpperCase();
+  if(op==="IN") return dash(kw).split(/\s+/).filter(Boolean).some(k=>t.indexOf(k.toUpperCase())>=0);
+  if(op==="RE"){ try{ return new RegExp(dash(kw),"i").test(t); }catch(e){ return false; } }
   return false;
 }
 function ruleInfer(rec){
@@ -1541,7 +1556,9 @@ function batchAnalyze(text){
       rec.errs.push(`列数不符：本行 ${r.length} 列，表头 ${head.length} 列。可能由未加引号的逗号/换行造成；请用 Excel「CSV UTF-8（逗号分隔）」重新另存后再导入。`);
       out.push(rec); continue;
     }
-    rec.draw=cell(r,"图号"); rec.name=cell(r,"品名"); rec.spec=cell(r,"规格"); rec.mat=cell(r,"材质牌号");
+    // ERP 不接受 "_"：文本字段入库前统一转成 "-"（分类码为纯数字，不受影响）
+    rec.draw=erpSafeTrim(cell(r,"图号")); rec.name=erpSafeTrim(cell(r,"品名"));
+    rec.spec=erpSafeTrim(cell(r,"规格")); rec.mat=erpSafeTrim(cell(r,"材质牌号"));
     rec.l5manual=attached?cell(r,"五级"):cell(r,"五级码");
     const chain=[
       {key:"z", pk:"零级码",pn:"零级名称",alias:"零级",len:2,label:"零级",parent:()=>[]},
@@ -1718,7 +1735,7 @@ function batchExportPreview(){
     const note=r.reuseSrc||(r.pick==="new"?(r.l5manual?"指定五级":(r.isDrawing?"图号即码":"自动流水")):"");
     return [`${r.ln}`,act,r.pick==="skip"?"":(r.final||""),r.codeType||"category",r.path||"",r.draw,r.name,r.spec,r.mat,note];
   });
-  download(`批量判定_${fileStamp()}.csv`,
+  download(`批量判定-${fileStamp()}.csv`,
     "\ufeff"+[head.join(",")].concat(rows.map(r=>r.map(c=>`"${String(c==null?"":c).replace(/"/g,'""')}"`).join(","))).join("\r\n"),
     "text/csv");
 }
@@ -1788,7 +1805,7 @@ $("btnBatchTpl").onclick=()=>{
 };
 $("btnBatchImport").onclick=()=>$("fileBatch").click();
 // 版本标记：改动后请同步更新此串，方便一眼确认浏览器加载的是不是最新页面（防 file:// 缓存）
-const APP_VER="2026-10-14 01:55 · 双轨编码 + ⑧试样单→ERP商品信息 + 金属材料单位 KG 规则";
+const APP_VER="2026-10-14 23:30 · 双轨编码 + ⑧试样单→ERP商品信息 + 金属材料单位 KG 规则 + ERP 非法字符「_」统一转「-」";
 if($("verTag")) $("verTag").textContent="v"+APP_VER;
 $("fileBatch").onchange=e=>{
   const f=e.target.files[0]; e.target.value=""; if(!f) return;
@@ -2023,7 +2040,7 @@ function buildExCsv(){
 $("btnExportExCsv").onclick=()=>{
   const rows=allCodes();
   if(!rows.length){ setExMsg("当前没有现存编码，无法导出。",true); return; }
-  download(`erp现存编码_${fileStamp()}.csv`, buildExCsv(), "text/csv");
+  download(`erp现存编码-${fileStamp()}.csv`, buildExCsv(), "text/csv");
   setExMsg(`已导出 ${rows.length} 条现存编码（源表+台账合并总表，与「导出修订清单」无关）。`);
 };
 // 清理台账里「图号重复」的脏记录：同一图号出现多条时，仅保留 record_time 最新一条，其余删除。
@@ -2051,7 +2068,7 @@ $("btnExportEdCfg").onclick=()=>{
   const rows=[];
   seedList.forEach(e=>{ const o=e.__orig; EX_FIELD.forEach(([f,n])=>{ if(String(e[f])!==String(o[f])) rows.push([e.erp,"源表",n,o[f],e[f]].map(v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`).join(",")); }); });
   logList.forEach(o=>{ EX_FIELD.forEach(([f,n])=>{ const tgt=f==="guige"?"spec":f; if(String(o[tgt])!==String(o.__ex[tgt])) rows.push([o.erp_code,"台账",n,o.__ex[tgt],o[tgt]].map(v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`).join(",")); }); });
-  download(`erp现存编码修订_${fileStamp()}.csv`,"\ufeff"+head.join(",")+"\n"+rows.join("\n"),"text/csv");
+  download(`erp现存编码修订-${fileStamp()}.csv`,"\ufeff"+head.join(",")+"\n"+rows.join("\n"),"text/csv");
   setExMsg(`已导出 ${seedList.length+logList.length} 条修订（含原值与新值，用于回写源表）。`);
 };
 $("btnRestoreEx").onclick=()=>{
@@ -2786,7 +2803,7 @@ function cfgCsvRows(){
 $("btnExportCsvCfg").onclick=()=>{
   const rows=cfgCsvRows();
   const nz=rows.filter(r=>r[0]===LVL_NAME.zero).length;
-  download(`erp分类_${fileStamp()}.csv`,csvJoin([CSV_HEAD,...rows]),"text/csv");
+  download(`erp分类-${fileStamp()}.csv`,csvJoin([CSV_HEAD,...rows]),"text/csv");
   csvMsg(`已导出 ${rows.length} 行（零级 ${nz} · 一级~四级 ${rows.length-nz}）。可用 Excel 编辑后「导入分类(CSV)」写回。`,"ok");
 };
 $("btnTplCsvCfg").onclick=()=>{
@@ -2953,7 +2970,7 @@ $("fileMap").onchange=e=>{
 };
 $("btnMapExport").onclick=()=>{
   if(!CATMAP.length){ catMsg("映射库是空的，先导入一份 CSV",""); return; }
-  downloadRows("分类映射库_"+CATMAP.length+"条.csv",["图号","品名","规格","材质牌号","零级","一级","二级","三级","四级"],catMapExportRows());
+  downloadRows("分类映射库-"+CATMAP.length+"条.csv",["图号","品名","规格","材质牌号","零级","一级","二级","三级","四级"],catMapExportRows());
   catMsg(`已导出 ${CATMAP.length} 条`,"ok");
 };
 $("btnMapClear").onclick=()=>{ requirePwd(()=>{
@@ -2971,7 +2988,7 @@ $("fileRule").onchange=e=>{
   rd.readAsText(f,"UTF-8");
 };
 $("btnRuleExport").onclick=()=>{
-  downloadRows("分类规则_"+catRules().length+"条.csv",["层级","序号","规则名","前提层","前提值","字段","方式","关键词","赋值码","赋值名","置信度","说明"],catRuleExportRows());
+  downloadRows("分类规则-"+catRules().length+"条.csv",["层级","序号","规则名","前提层","前提值","字段","方式","关键词","赋值码","赋值名","置信度","说明"],catRuleExportRows());
   catMsg(`已导出 ${catRules().length} 条规则，可在 Excel 里改完再导入`,"ok");
 };
 $("btnRuleReset").onclick=()=>{
@@ -3277,7 +3294,7 @@ function wireCloudButtons(){
   if(bExp) bExp.onclick=()=>{
     if(!log.length){ logMsg("台账为空，无可备份内容"); return; }
     const payload={app:"erp-code-workbench",version:APP_VER,exported_at:new Date().toISOString(),log:log,CFG:CFG,exOv:exOv};
-    download(`erp云端备份_${fileStamp()}.json`,JSON.stringify(payload,null,2),"application/json");
+    download(`erp云端备份-${fileStamp()}.json`,JSON.stringify(payload,null,2),"application/json");
     logMsg(`已导出全量备份（台账 ${log.length} 条 + 配置）`); };
   const bImp=document.getElementById("btnRestoreAll");
   if(bImp) bImp.onclick=()=>{ const f=document.getElementById("fileRestore"); if(f) f.click(); };
@@ -3493,7 +3510,8 @@ function erpBuild(){
   const rows=erpSrcRows, I=erpSrcIdx;
   if(!rows||!I) return;
   const zo=curErpZero();
-  const cell=(r,k)=>{ const i=I[k]; return i<0?"":String(r[i]==null?"":r[i]).trim(); };
+  // 每个单元格都过一遍 erpSafe：「_」在 ERP 里非法，统一换「-」，预览/写台账/导出三处同源
+  const cell=(r,k)=>{ const i=I[k]; return i<0?"":erpSafeTrim(r[i]); };
   const seen={};
   for(let i=1;i<rows.length;i++){
     const r=rows[i], ln=i+1;
@@ -3661,7 +3679,7 @@ $("btnErpTpl").onclick=()=>{
   const lines=[SMPL_HEAD].concat(SMPL_ROWS);
   const csv=lines.map(line=>line.map(v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`).join(",")).join("\r\n");
   // UTF-8 BOM + CRLF：Excel 双击打开不乱码，也能被 decodeCsvBuf 正确判为 UTF-8
-  download(`试样单模板_${fileStamp()}.csv`,"\ufeff"+csv,"text/csv");
+  download(`试样单模板-${fileStamp()}.csv`,"\ufeff"+csv,"text/csv");
   erpMsg("已下载模板：请把 5 行<b>样例</b>替换成自己的数据（<b>保留表头行</b>），存盘后在本面板上传即可。样例说明：<b>前 4 行规格是金属材料 → 单位填 KG</b>，第 5 行 PE 膜是非金属 → 填 PCS（留作对照）；最后一行故意<b>留空图号</b>，演示无图号物料的处理（这类需去「①生成编码」走 13 位分类码）。","ok");
 };
 $("btnErpExp").onclick=()=>{
@@ -3669,7 +3687,8 @@ $("btnErpExp").onclick=()=>{
   if(!todo.length){ erpMsg("没有可导出的行，请先上传试样单","warn"); return; }
   const miss=todo.filter(r=>r.catMiss).length;
   if(miss && !confirm(`${miss} 行的「商品分类」未在映射表中，导出后该列会留空。\n留空行需在 ERP 里手工补，建议先去「商品分类映射表」补规则。\n\n是否仍要继续导出？`)) return;
-  const put=(a,nm,v)=>{ const i=DEA_IDX[nm]; if(i!==undefined) a[i]=String(v==null?"":v); };
+  // 出口二次清洗：即便历史台账或手工改动里残留 "_"，导出的文件也一定是 "-"
+  const put=(a,nm,v)=>{ const i=DEA_IDX[nm]; if(i!==undefined) a[i]=erpSafe(v); };
   // 导出前自检：任一目标列名在 118 列表头里找不到，说明列名写错。宁可中止报错，
   // 也不能让值被静默丢在空列里——那会导出一个看着正常、实则缺列的坏文件。
   const targets=["品号/图号1","品名","规格","材料牌号","版本号","库存单位","采购单位","销售单位","商品分类","主要来源"]
@@ -3691,8 +3710,8 @@ $("btnErpExp").onclick=()=>{
     DEA_CONST.forEach(p=>put(a,p[0],p[1]));
     lines.push(a);
   });
-  const csv=lines.map(line=>line.map(v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`).join(",")).join("\r\n");
-  download(`ERP商品信息转入_${fileStamp()}.csv`,"\ufeff"+csv,"text/csv");
+  const csv=lines.map(line=>line.map(v=>`"${erpSafe(v).replace(/"/g,'""')}"`).join(",")).join("\r\n");
+  download(`ERP商品信息转入-${fileStamp()}.csv`,"\ufeff"+csv,"text/csv");
   erpMsg(`已导出 <b>${todo.length}</b> 条 × <b>${DEA_COLS.length}</b> 列${miss?`（其中 ${miss} 条商品分类留空）`:""}`, "ok");
 };
 $("fileSample").onchange=e=>{
